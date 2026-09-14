@@ -12,6 +12,10 @@ const state = {
   query: '',
   selectedId: null,
   sortAscending: true,
+  timelineAnchor: dateKey(),
+  timelineScale: 'day',
+  calendarAnchor: dateKey(),
+  calendarMode: 'month',
   customProjects: [],
   customLists: []
 };
@@ -37,16 +41,49 @@ function dateKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
-function shiftDate(offset) {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setDate(date.getDate() + offset);
+function dateFromKey(value) {
+  return new Date(`${value}T12:00:00`);
+}
+
+function addDays(value, amount) {
+  const date = dateFromKey(value);
+  date.setDate(date.getDate() + amount);
   return dateKey(date);
+}
+
+function addMonths(value, amount) {
+  const date = dateFromKey(value);
+  date.setDate(1);
+  date.setMonth(date.getMonth() + amount);
+  return dateKey(date);
+}
+
+function startOfWeek(value, mondayFirst = true) {
+  const date = dateFromKey(value);
+  const offset = mondayFirst ? (date.getDay() + 6) % 7 : date.getDay();
+  date.setDate(date.getDate() - offset);
+  return dateKey(date);
+}
+
+function startOfMonth(value) {
+  const date = dateFromKey(value);
+  date.setDate(1);
+  return dateKey(date);
+}
+
+function endOfMonth(value) {
+  const date = dateFromKey(value);
+  date.setMonth(date.getMonth() + 1, 0);
+  return dateKey(date);
+}
+
+function shiftDate(offset) {
+  return addDays(dateKey(), offset);
 }
 
 function formatDate(value, style = 'short') {
   if (!value) return '';
-  const date = new Date(`${value}T12:00:00`);
+  const date = dateFromKey(value);
   if (style === 'group') return new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(date);
   return new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric' }).format(date);
 }
@@ -88,7 +125,7 @@ function setConnection(connected, fallback) {
   card.classList.toggle('connected', state.connected && !state.fallback);
   card.classList.toggle('offline', !state.connected);
   $('#connection-label').textContent = state.fallback ? '演示模式' : state.connected ? '已连接 Obsidian' : 'Obsidian 未连接';
-  $('#connection-meta').textContent = state.fallback ? '可先体验，连接后自动同步' : `vault=${state.vault} · ${state.taskFile}`;
+  $('#connection-meta').textContent = state.fallback ? '可先体验，连接后自动同步' : `vault=${state.vault} · 全仓库任务`;
   $('#seed-button').textContent = state.connected ? '写入真实示例任务 →' : '需要 Obsidian 才能写入 →';
   $('#sync-pill').classList.toggle('offline', !state.connected || state.fallback);
   $('#sync-pill').innerHTML = `<span class="sync-dot"></span>${state.fallback ? '演示数据' : state.connected ? '已同步' : '未连接'}`;
@@ -138,14 +175,14 @@ function currentViewCopy() {
   const project = projectView();
   if (project) return { title: project, heading: `${project} 项目`, subtitle: '围绕同一个目标，推进每一个下一步。' };
   const copies = {
-    inbox: { title: '收集箱', heading: '收集箱', subtitle: '先记下来，再安排下一步。' },
+    inbox: { title: '收集箱', heading: '📥 收集箱', subtitle: '先记下来，再安排下一步。' },
     today: { title: '今天', heading: '今天要完成什么', subtitle: '让重要的事情在截止之前完成。' },
     upcoming: { title: '即将到来', heading: '即将到来', subtitle: '提前看见接下来几天的节奏。' },
     completed: { title: '已完成', heading: '已完成', subtitle: '回看已经完成的每一件小事。' },
-    timeline: { title: '时间线', heading: '📌 项目进程', subtitle: '按项目查看任务在时间上的分布。' },
-    kanban: { title: '看板', heading: '🚀 九月计划', subtitle: '把任务按清单分组，快速掌握推进情况。' },
-    calendar: { title: '日历', heading: '日历', subtitle: '在月视图里安排和查看任务。' },
-    matrix: { title: '四象限', heading: '任务四象限', subtitle: '按重要性和紧急程度决定下一步。' }
+    timeline: { title: '时间线', heading: '🛤️ 时间线', subtitle: '按项目查看任务在时间上的分布。' },
+    kanban: { title: '看板', heading: '🗂️ 看板', subtitle: '把任务按清单分组，快速掌握推进情况。' },
+    calendar: { title: '日历', heading: '📅 日历', subtitle: '在日历中安排和查看任务。' },
+    matrix: { title: '四象限', heading: '🎯 四象限', subtitle: '按重要性和紧急程度决定下一步。' }
   };
   return copies[state.view] || copies.inbox;
 }
@@ -185,12 +222,12 @@ function visibleTasks() {
   }
   tasks.sort((left, right) => {
     if (state.view === 'inbox') {
-      const relativeRank = (date) => date === today ? 0 : date > today ? 1 : 2;
+      const relativeRank = (date) => !date ? 3 : date === today ? 0 : date > today ? 1 : 2;
       const rankDifference = relativeRank(left.dueDate) - relativeRank(right.dueDate);
       if (rankDifference !== 0) return rankDifference;
     }
-    const leftKey = `${left.dueDate} ${left.dueTime || '23:59'}`;
-    const rightKey = `${right.dueDate} ${right.dueTime || '23:59'}`;
+    const leftKey = left.dueDate ? `${left.dueDate} ${left.dueTime || '23:59'}` : '9999-12-31 23:59';
+    const rightKey = right.dueDate ? `${right.dueDate} ${right.dueTime || '23:59'}` : '9999-12-31 23:59';
     return state.sortAscending ? leftKey.localeCompare(rightKey) : rightKey.localeCompare(leftKey);
   });
   return tasks;
@@ -294,7 +331,9 @@ function priorityBadge(task) {
 }
 
 function taskMeta(task) {
-  const due = `<span class="task-date"><span class="calendar-mini"></span>${escapeHtml(task.dueTime ? `${formatDate(task.dueDate)} · ${task.dueTime}` : formatDate(task.dueDate))}</span>`;
+  const due = task.dueDate
+    ? `<span class="task-date"><span class="calendar-mini"></span>${escapeHtml(task.dueTime ? `${formatDate(task.dueDate)} · ${task.dueTime}` : formatDate(task.dueDate))}</span>`
+    : '<span class="task-date undated">无日期</span>';
   const deadline = task.deadlineDate ? `<span class="deadline-meta">⌁ ${escapeHtml(task.deadlineTime ? `${formatDate(task.deadlineDate)} · ${task.deadlineTime}` : formatDate(task.deadlineDate))}</span>` : '';
   const repeat = task.repeat !== 'none' ? `<span class="repeat-meta">↻ ${repeatInfo[task.repeat]}</span>` : '';
   const project = task.project ? `<span class="project-badge">${escapeHtml(task.project)}</span>` : '';
@@ -303,17 +342,18 @@ function taskMeta(task) {
 }
 
 function taskCard(task, compact = false) {
-  const dateText = task.dueDate === dateKey() ? '' : dayLabel(task.dueDate);
-  const timeText = task.dueTime || '全天';
+  const dateText = !task.dueDate || task.dueDate === dateKey() ? '' : dayLabel(task.dueDate);
+  const timeText = task.dueDate ? task.dueTime || '全天' : '无日期';
   const priority = task.priority !== 'none' ? `<span class="task-priority priority-${escapeHtml(task.priority)}" title="${escapeHtml(priorityInfo[task.priority])}"></span>` : '';
   const repeat = task.repeat !== 'none' ? '<span class="task-repeat" title="循环任务">↻</span>' : '';
-  return `<article class="task-card status-${escapeHtml(task.status)} ${task.id === state.selectedId ? 'selected' : ''} ${compact ? 'compact' : ''}" data-task-id="${escapeHtml(task.id)}"><button class="task-checkbox status-${escapeHtml(task.status)}" data-toggle-id="${escapeHtml(task.id)}" aria-label="切换任务完成状态"></button><div class="task-main" data-select-id="${escapeHtml(task.id)}"><div class="task-title">${priority}${escapeHtml(task.title)}${repeat}</div><div class="task-meta">${taskMeta(task)}</div></div><time class="task-time" datetime="${escapeHtml(`${task.dueDate}T${task.dueTime || '00:00'}`)}"><span>${escapeHtml(dateText)}</span><strong>${escapeHtml(timeText)}</strong></time><select class="task-status-select" data-status-id="${escapeHtml(task.id)}" aria-label="任务状态">${Object.entries(statusInfo).map(([key, info]) => `<option value="${key}" ${task.status === key ? 'selected' : ''}>${info.label}</option>`).join('')}</select><button class="task-more" data-select-id="${escapeHtml(task.id)}" aria-label="查看任务详情">···</button></article>`;
+  const dateTimeAttribute = task.dueDate ? ` datetime="${escapeHtml(`${task.dueDate}T${task.dueTime || '00:00'}`)}"` : '';
+  return `<article class="task-card status-${escapeHtml(task.status)} ${task.id === state.selectedId ? 'selected' : ''} ${compact ? 'compact' : ''}" data-task-id="${escapeHtml(task.id)}"><button class="task-checkbox status-${escapeHtml(task.status)}" data-toggle-id="${escapeHtml(task.id)}" aria-label="切换任务完成状态"></button><div class="task-main" data-select-id="${escapeHtml(task.id)}"><div class="task-title">${priority}${escapeHtml(task.title)}${repeat}</div><div class="task-meta">${taskMeta(task)}</div></div><time class="task-time"${dateTimeAttribute}><span>${escapeHtml(dateText)}</span><strong>${escapeHtml(timeText)}</strong></time><select class="task-status-select" data-status-id="${escapeHtml(task.id)}" aria-label="任务状态">${Object.entries(statusInfo).map(([key, info]) => `<option value="${key}" ${task.status === key ? 'selected' : ''}>${info.label}</option>`).join('')}</select><button class="task-more" data-select-id="${escapeHtml(task.id)}" aria-label="查看任务详情">···</button></article>`;
 }
 
 function groupTasks(tasks) {
   const groups = new Map();
   for (const task of tasks) {
-    const key = task.dueDate === dateKey() ? 'today' : task.dueDate === shiftDate(1) ? 'tomorrow' : task.dueDate >= dateKey() && task.dueDate <= shiftDate(6) ? 'next7' : task.dueDate;
+    const key = !task.dueDate ? 'undated' : task.dueDate === dateKey() ? 'today' : task.dueDate === shiftDate(1) ? 'tomorrow' : task.dueDate >= dateKey() && task.dueDate <= shiftDate(6) ? 'next7' : task.dueDate;
     if (!groups.has(key)) groups.set(key, { date: task.dueDate, tasks: [] });
     groups.get(key).tasks.push(task);
   }
@@ -332,7 +372,7 @@ function renderListView(tasks) {
   for (const [groupKey, group] of groupTasks(tasks)) {
     const section = document.createElement('section');
     section.className = 'task-group';
-    const label = groupKey === 'today' ? '今天' : groupKey === 'tomorrow' ? '明天' : groupKey === 'next7' ? '最近 7 天' : dayLabel(group.date);
+    const label = groupKey === 'undated' ? '无日期' : groupKey === 'today' ? '今天' : groupKey === 'tomorrow' ? '明天' : groupKey === 'next7' ? '最近 7 天' : dayLabel(group.date);
     section.innerHTML = `<div class="group-heading ${groupKey === 'today' ? 'today-heading' : ''}"><span class="group-marker"></span><span>${escapeHtml(label)}</span><span class="group-count">${group.tasks.length}</span></div>${group.tasks.map((task) => taskCard(task)).join('')}`;
     element.appendChild(section);
   }
@@ -371,28 +411,88 @@ function renderTimelineView(tasks) {
 }
 
 function viewTaskDate(task) {
-  return task.dueDate || task.deadlineDate || dateKey();
+  return task.dueDate || task.deadlineDate || '';
+}
+
+function taskDateDisplay(task) {
+  if (!task.dueDate) return '未安排';
+  if (task.dueDate === dateKey()) return task.dueTime || '今天';
+  return formatDate(task.dueDate);
+}
+
+function buildTimelinePeriods() {
+  const anchor = state.timelineAnchor || dateKey();
+  if (state.timelineScale === 'week') {
+    const start = startOfWeek(anchor);
+    return Array.from({ length: 6 }, (_, index) => {
+      const periodStart = addDays(start, index * 7);
+      const periodEnd = addDays(periodStart, 6);
+      const startDate = dateFromKey(periodStart);
+      const endDate = dateFromKey(periodEnd);
+      return {
+        start: periodStart,
+        end: periodEnd,
+        label: `${startDate.getMonth() + 1}月`,
+        value: startDate.getMonth() === endDate.getMonth() ? `${startDate.getDate()}–${endDate.getDate()}` : `${startDate.getDate()}–${endDate.getMonth() + 1}/${endDate.getDate()}`
+      };
+    });
+  }
+  if (state.timelineScale === 'month') {
+    const start = startOfMonth(anchor);
+    return Array.from({ length: 6 }, (_, index) => {
+      const periodStart = addMonths(start, index);
+      const date = dateFromKey(periodStart);
+      return { start: periodStart, end: endOfMonth(periodStart), label: `${date.getFullYear()}年`, value: `${date.getMonth() + 1}月` };
+    });
+  }
+  const start = startOfWeek(anchor);
+  return Array.from({ length: 7 }, (_, index) => {
+    const periodStart = addDays(start, index);
+    const date = dateFromKey(periodStart);
+    return {
+      start: periodStart,
+      end: periodStart,
+      label: new Intl.DateTimeFormat('zh-CN', { weekday: 'short' }).format(date),
+      value: String(date.getDate())
+    };
+  });
+}
+
+function timelineRangeLabel(periods) {
+  if (state.timelineScale === 'day') return new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(dateFromKey(state.timelineAnchor));
+  if (state.timelineScale === 'week') return `${formatDate(periods[0].start)} — ${formatDate(periods[periods.length - 1].end)}`;
+  const first = dateFromKey(periods[0].start);
+  const last = dateFromKey(periods[periods.length - 1].start);
+  return first.getFullYear() === last.getFullYear() ? `${first.getFullYear()}年` : `${first.getFullYear()} — ${last.getFullYear()}`;
+}
+
+function moveTimeline(direction) {
+  state.timelineAnchor = state.timelineScale === 'month'
+    ? addMonths(state.timelineAnchor, direction)
+    : addDays(state.timelineAnchor, direction * (state.timelineScale === 'week' ? 7 : 1));
+  renderTaskView();
 }
 
 function renderProjectTimeline(tasks) {
   const element = document.createElement('div');
   element.className = 'project-timeline-view';
-  const dates = Array.from({ length: 7 }, (_, index) => shiftDate(index));
-  const firstDate = dates[0];
-  const lastDate = dates[dates.length - 1];
-  const timelineTasks = tasks.filter((task) => viewTaskDate(task) <= lastDate && (task.deadlineDate || viewTaskDate(task)) >= firstDate);
+  const periods = buildTimelinePeriods();
+  const firstDate = periods[0].start;
+  const lastDate = periods[periods.length - 1].end;
+  const taskEndDate = (task) => task.deadlineDate && task.deadlineDate >= viewTaskDate(task) ? task.deadlineDate : viewTaskDate(task);
+  const timelineTasks = tasks.filter((task) => viewTaskDate(task) && viewTaskDate(task) <= lastDate && taskEndDate(task) >= firstDate);
   const projects = [...new Set(timelineTasks.map((task) => task.project || task.list || '未归档'))];
-  const dateHeader = dates.map((date) => `<div class="project-timeline-day ${date === dateKey() ? 'today' : ''}"><span>${new Intl.DateTimeFormat('zh-CN', { weekday: 'short' }).format(new Date(`${date}T12:00:00`))}</span><strong>${new Date(`${date}T12:00:00`).getDate()}</strong></div>`).join('');
+  const dateHeader = periods.map((period) => `<div class="project-timeline-day ${dateKey() >= period.start && dateKey() <= period.end ? 'today' : ''}"><span>${escapeHtml(period.label)}</span><strong>${escapeHtml(period.value)}</strong></div>`).join('');
   const rows = projects.map((project, index) => {
     const projectTasks = timelineTasks.filter((task) => (task.project || task.list || '未归档') === project);
     const laneEnds = [-1, -1];
     const scheduledTasks = projectTasks.map((task) => {
       const taskDate = viewTaskDate(task);
-      const start = dates.indexOf(taskDate);
+      const endDate = taskEndDate(task);
+      const start = periods.findIndex((period) => taskDate >= period.start && taskDate <= period.end);
+      const end = periods.findIndex((period) => endDate >= period.start && endDate <= period.end);
       const safeStart = taskDate < firstDate ? 0 : start;
-      const endDate = task.deadlineDate || task.dueDate;
-      const end = dates.indexOf(endDate);
-      const safeEnd = endDate > lastDate ? dates.length - 1 : Math.max(safeStart, end);
+      const safeEnd = endDate > lastDate ? periods.length - 1 : Math.max(safeStart, end);
       return { task, safeStart, safeEnd };
     }).sort((left, right) => left.safeStart - right.safeStart || right.safeEnd - left.safeEnd || (left.task.dueTime || '').localeCompare(right.task.dueTime || ''));
     const bars = scheduledTasks.map((item) => {
@@ -400,12 +500,16 @@ function renderProjectTimeline(tasks) {
       if (lane < 0) return '';
       laneEnds[lane] = item.safeEnd;
       const span = Math.max(1, item.safeEnd - item.safeStart + 1);
-      return `<button class="project-timeline-task color-${index % 5}" data-select-id="${escapeHtml(item.task.id)}" style="grid-column:${item.safeStart + 1} / span ${Math.min(span, 7 - item.safeStart)};grid-row:${lane + 1}"><span>${escapeHtml(item.task.title)}</span><time>${escapeHtml(item.task.dueTime || formatDate(item.task.dueDate))}</time></button>`;
+      return `<button class="project-timeline-task color-${index % 5}" data-select-id="${escapeHtml(item.task.id)}" style="grid-column:${item.safeStart + 1} / span ${Math.min(span, periods.length - item.safeStart)};grid-row:${lane + 1}"><span>${escapeHtml(item.task.title)}</span><time>${escapeHtml(item.task.dueTime || formatDate(item.task.dueDate))}</time></button>`;
     }).join('');
     return `<section class="project-timeline-row"><div class="project-timeline-label"><span class="project-color" style="background:${projectColors[index % projectColors.length]}"></span>${escapeHtml(project)}<em>${projectTasks.length}</em></div><div class="project-timeline-track">${bars}</div></section>`;
   }).join('');
-  const monthLabel = new Intl.DateTimeFormat('zh-CN', { month: 'long' }).format(new Date());
-  element.innerHTML = `<div class="project-timeline-toolbar"><span>${escapeHtml(monthLabel)}</span><div><button>今天</button><button>日⌄</button></div></div><div class="project-timeline-header"><div></div><div class="project-timeline-days">${dateHeader}</div></div>${rows}`;
+  element.style.setProperty('--timeline-columns', periods.length);
+  element.innerHTML = `<div class="project-timeline-toolbar"><span>${escapeHtml(timelineRangeLabel(periods))}</span><div class="view-control-group"><button type="button" data-timeline-nav="-1" aria-label="上一个时间范围">‹</button><button type="button" data-timeline-today>今天</button><label class="compact-select"><select data-timeline-scale aria-label="时间线粒度"><option value="day">日</option><option value="week">周</option><option value="month">月</option></select></label><button type="button" data-timeline-nav="1" aria-label="下一个时间范围">›</button></div></div><div class="project-timeline-header"><div></div><div class="project-timeline-days">${dateHeader}</div></div>${rows || '<div class="period-empty">这个时间范围内没有任务</div>'}`;
+  element.querySelector('[data-timeline-scale]').value = state.timelineScale;
+  element.querySelectorAll('[data-timeline-nav]').forEach((button) => button.addEventListener('click', () => moveTimeline(Number(button.dataset.timelineNav))));
+  element.querySelector('[data-timeline-today]').addEventListener('click', () => { state.timelineAnchor = dateKey(); renderTaskView(); });
+  element.querySelector('[data-timeline-scale]').addEventListener('change', (event) => { state.timelineScale = event.target.value; renderTaskView(); });
   bindTaskElements(element);
   return element;
 }
@@ -424,13 +528,14 @@ function renderKanbanView(tasks) {
   const columns = boardGroups;
   element.innerHTML = columns.map((project, index) => {
     const projectTasks = tasks.filter((task) => kanbanGroup(task) === project);
-    return `<section class="kanban-column"><header><span>${escapeHtml(project)}</span><em>${projectTasks.length}</em></header><div class="kanban-cards">${projectTasks.map((task) => `<button class="kanban-task color-${index % 5}" data-select-id="${escapeHtml(task.id)}"><span class="kanban-check"></span><strong>${escapeHtml(task.title)}</strong><time>${escapeHtml(task.dueTime || dayLabel(task.dueDate))}</time></button>`).join('')}</div></section>`;
+    return `<section class="kanban-column"><header><span>${escapeHtml(project)}</span><em>${projectTasks.length}</em></header><div class="kanban-cards">${projectTasks.map((task) => `<button class="kanban-task color-${index % 5}" data-select-id="${escapeHtml(task.id)}"><span class="kanban-check"></span><strong>${escapeHtml(task.title)}</strong><time>${escapeHtml(taskDateDisplay(task))}</time></button>`).join('')}</div></section>`;
   }).join('');
   bindTaskElements(element);
   return element;
 }
 
-function monthGrid(monthDate = new Date()) {
+function monthGrid(value = state.calendarAnchor) {
+  const monthDate = dateFromKey(value);
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
   const first = new Date(year, month, 1);
@@ -442,19 +547,44 @@ function monthGrid(monthDate = new Date()) {
   });
 }
 
+function weekGrid(value = state.calendarAnchor) {
+  const start = startOfWeek(value, false);
+  return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+}
+
+function calendarRangeLabel(dates) {
+  if (state.calendarMode === 'month') return new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(dateFromKey(state.calendarAnchor));
+  const start = dateFromKey(dates[0]);
+  const end = dateFromKey(dates[dates.length - 1]);
+  const startLabel = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }).format(start);
+  const endLabel = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(end);
+  return `${startLabel} — ${endLabel}`;
+}
+
+function moveCalendar(direction) {
+  state.calendarAnchor = state.calendarMode === 'month' ? addMonths(state.calendarAnchor, direction) : addDays(state.calendarAnchor, direction * 7);
+  renderTaskView();
+}
+
 function renderCalendarView(tasks) {
   const element = document.createElement('div');
-  element.className = 'calendar-view';
-  const dates = monthGrid(new Date());
+  element.className = `calendar-view mode-${state.calendarMode}`;
+  const dates = state.calendarMode === 'month' ? monthGrid() : weekGrid();
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const anchorMonth = dateFromKey(state.calendarAnchor).getMonth();
   const cells = dates.map((date) => {
-    const dateObject = new Date(`${date}T12:00:00`);
+    const dateObject = dateFromKey(date);
     const tasksForDay = tasks.filter((task) => viewTaskDate(task) === date);
-    const muted = dateObject.getMonth() !== new Date().getMonth();
-    return `<article class="calendar-cell ${date === dateKey() ? 'today' : ''} ${muted ? 'muted' : ''}"><div class="calendar-date">${dateObject.getDate()}</div>${tasksForDay.slice(0, 5).map((task) => `<button class="calendar-task color-${tasks.indexOf(task) % 5}" data-select-id="${escapeHtml(task.id)}"><span class="calendar-task-check"></span>${escapeHtml(task.title)}<time>${escapeHtml(task.dueTime || '')}</time></button>`).join('')}</article>`;
+    const muted = state.calendarMode === 'month' && dateObject.getMonth() !== anchorMonth;
+    const more = tasksForDay.length > 5 ? `<div class="calendar-more">还有 ${tasksForDay.length - 5} 项</div>` : '';
+    return `<article class="calendar-cell ${date === dateKey() ? 'today' : ''} ${muted ? 'muted' : ''}"><div class="calendar-date">${dateObject.getDate()}</div>${tasksForDay.slice(0, 5).map((task) => `<button class="calendar-task color-${tasks.indexOf(task) % 5}" data-select-id="${escapeHtml(task.id)}"><span class="calendar-task-check"></span>${escapeHtml(task.title)}<time>${escapeHtml(task.dueTime || '')}</time></button>`).join('')}${more}</article>`;
   }).join('');
-  const currentLabel = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date());
-  element.innerHTML = `<div class="calendar-toolbar"><strong>${escapeHtml(currentLabel)}</strong><div><button>＋</button><button>月⌄</button><button>‹</button><button>今天</button><button>›</button><button>···</button></div></div><div class="calendar-weekdays">${weekdays.map((day) => `<span>${day}</span>`).join('')}</div><div class="calendar-grid">${cells}</div>`;
+  element.innerHTML = `<div class="calendar-toolbar"><strong>${escapeHtml(calendarRangeLabel(dates))}</strong><div class="view-control-group"><button type="button" data-calendar-add aria-label="添加任务">＋</button><label class="compact-select"><select data-calendar-mode aria-label="日历视图"><option value="month">月</option><option value="week">周</option></select></label><button type="button" data-calendar-nav="-1" aria-label="上一个时间范围">‹</button><button type="button" data-calendar-today>今天</button><button type="button" data-calendar-nav="1" aria-label="下一个时间范围">›</button></div></div><div class="calendar-weekdays">${weekdays.map((day) => `<span>${day}</span>`).join('')}</div><div class="calendar-grid">${cells}</div>`;
+  element.querySelector('[data-calendar-mode]').value = state.calendarMode;
+  element.querySelector('[data-calendar-add]').addEventListener('click', openModal);
+  element.querySelectorAll('[data-calendar-nav]').forEach((button) => button.addEventListener('click', () => moveCalendar(Number(button.dataset.calendarNav))));
+  element.querySelector('[data-calendar-today]').addEventListener('click', () => { state.calendarAnchor = dateKey(); renderTaskView(); });
+  element.querySelector('[data-calendar-mode]').addEventListener('change', (event) => { state.calendarMode = event.target.value; renderTaskView(); });
   bindTaskElements(element);
   return element;
 }
@@ -475,7 +605,7 @@ function renderMatrixView(tasks) {
     ['not-important-urgent', 'Ⅲ 不重要但紧急', 'matrix-blue'],
     ['not-important-not-urgent', 'Ⅳ 不重要不紧急', 'matrix-green']
   ];
-  element.innerHTML = buckets.map(([key, label, color]) => `<section class="matrix-quadrant ${color}"><header>${escapeHtml(label)}</header><div>${tasks.filter((task) => matrixBucket(task) === key).map((task) => `<button class="matrix-task" data-select-id="${escapeHtml(task.id)}"><span></span><strong>${escapeHtml(task.title)}</strong><time>${escapeHtml(task.dueTime || dayLabel(task.dueDate))}</time></button>`).join('')}</div></section>`).join('');
+  element.innerHTML = buckets.map(([key, label, color]) => `<section class="matrix-quadrant ${color}"><header>${escapeHtml(label)}</header><div>${tasks.filter((task) => matrixBucket(task) === key).map((task) => `<button class="matrix-task" data-select-id="${escapeHtml(task.id)}"><span></span><strong>${escapeHtml(task.title)}</strong><time>${escapeHtml(taskDateDisplay(task))}</time></button>`).join('')}</div></section>`).join('');
   bindTaskElements(element);
   return element;
 }
@@ -521,7 +651,7 @@ function renderDetail() {
   empty.classList.add('hidden');
   content.classList.remove('hidden');
   $('#detail-title').value = task.title;
-  $('#detail-date-label').textContent = `${task.dueDate === dateKey() ? '今天' : dayLabel(task.dueDate)}${task.dueTime ? `，${task.dueTime}` : ''}`;
+  $('#detail-date-label').textContent = task.dueDate ? `${task.dueDate === dateKey() ? '今天' : dayLabel(task.dueDate)}${task.dueTime ? `，${task.dueTime}` : ''}` : '无日期';
   $('#detail-date').value = task.dueDate;
   $('#detail-time').value = task.dueTime || '';
   $('#detail-deadline-date').value = task.deadlineDate || '';
@@ -718,7 +848,7 @@ function bindEvents() {
   $('#rail-refresh-button').addEventListener('click', () => { showToast('正在从 Obsidian 刷新…'); loadTasks(); });
   $('#close-detail-button').addEventListener('click', () => { state.selectedId = null; $('#detail-panel').classList.remove('mobile-open'); render(); });
   $('#add-project-button').addEventListener('click', addProject);
-  $('#settings-button').addEventListener('click', () => showToast(`当前连接：vault=${state.vault} · ${state.taskFile}`));
+  $('#settings-button').addEventListener('click', () => showToast(`读取整个仓库 · 新任务写入 ${state.taskFile}`));
   $('#date-filter-button').addEventListener('click', cycleDateFilter);
   $('#sort-button').addEventListener('click', () => { state.sortAscending = !state.sortAscending; render(); });
   $('#search-input').addEventListener('input', (event) => { state.query = event.target.value.trim(); renderTaskView(); });

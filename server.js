@@ -171,7 +171,7 @@ function normalizeRecord(record, index) {
     line,
     source: 'obsidian'
   };
-  if (!task.title || !task.dueDate) return null;
+  if (!task.title) return null;
   return task;
 }
 
@@ -195,13 +195,13 @@ function taskStatusChar(status) {
 }
 
 function taskLine(task) {
-  const due = `${task.dueDate}${task.dueTime ? ` ${task.dueTime}` : ''}`;
+  const due = task.dueDate ? ` 📅 ${task.dueDate}${task.dueTime ? ` ${task.dueTime}` : ''}` : '';
   const deadline = task.deadlineDate ? `${task.deadlineDate}${task.deadlineTime ? ` ${task.deadlineTime}` : ''}` : '';
   const priority = { urgent: ' 🔴', high: ' 🟠', medium: ' 🟡', low: ' 🟢' }[task.priority] || '';
   const repeat = task.repeat && task.repeat !== 'none' ? ` 🔁 ${task.repeat}` : '';
   const tags = [...new Set((task.tags || []).map((tag) => String(tag).replace(/^#/, '')).filter(Boolean))].map((tag) => `#${tag}`).join(' ');
   const metadata = JSON.stringify({ taskbase: 1, dueDate: task.dueDate, dueTime: task.dueTime || '', deadlineDate: task.deadlineDate || '', deadlineTime: task.deadlineTime || '', repeat: task.repeat || 'none', project: task.project || '未归档', list: task.list || '收件箱', priority: task.priority || 'none', status: task.status || 'todo', tags: task.tags || [], note: task.note || '' }).replaceAll('-->', '-- >');
-  return `- [${taskStatusChar(task.status)}] ${task.title.trim()} 📅 ${due}${deadline ? ` ⏳ ${deadline}` : ''}${repeat}${priority}${tags ? ` ${tags}` : ''} <!-- taskbase ${metadata} -->`.trim();
+  return `- [${taskStatusChar(task.status)}] ${task.title.trim()}${due}${deadline ? ` ⏳ ${deadline}` : ''}${repeat}${priority}${tags ? ` ${tags}` : ''} <!-- taskbase ${metadata} -->`.trim();
 }
 
 function safeTaskInput(body) {
@@ -209,8 +209,8 @@ function safeTaskInput(body) {
   const dueTime = String(body.dueTime || '').match(/^\d{1,2}:\d{2}$/)?.[0] || '';
   const deadlineDate = String(body.deadlineDate || '').slice(0, 10);
   const deadlineTime = String(body.deadlineTime || '').match(/^\d{1,2}:\d{2}$/)?.[0] || '';
-  if (!String(body.title || '').trim() || !dueDate) throw new Error('任务标题和日期不能为空');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) throw new Error('日期格式应为 YYYY-MM-DD');
+  if (!String(body.title || '').trim()) throw new Error('任务标题不能为空');
+  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) throw new Error('日期格式应为 YYYY-MM-DD');
   if (deadlineDate && !/^\d{4}-\d{2}-\d{2}$/.test(deadlineDate)) throw new Error('截止日期格式应为 YYYY-MM-DD');
   const status = VALID_STATUSES.includes(body.status) ? body.status : body.completed ? 'done' : 'todo';
   return {
@@ -227,7 +227,7 @@ function safeTaskInput(body) {
 
 async function loadTasks() {
   try {
-    const result = await runObsidian(['tasks', `path=${TASK_FILE}`, 'verbose', 'format=json']);
+    const result = await runObsidian(['tasks', 'verbose', 'format=json']);
     return { tasks: parseTasksOutput(result.stdout), connected: true, fallback: false, vault: VAULT, taskFile: TASK_FILE };
   } catch (error) {
     return { tasks: demoTasks(), connected: false, fallback: true, vault: VAULT, taskFile: TASK_FILE, error: error.message };
@@ -441,7 +441,7 @@ async function handleApi(request, response, url) {
     }
     if (request.method === 'GET' && url.pathname === '/api/health') {
       try {
-        const result = await runObsidian(['tasks', `path=${TASK_FILE}`, 'total']);
+        const result = await runObsidian(['tasks', 'total']);
         jsonResponse(response, 200, { connected: true, vault: VAULT, taskFile: TASK_FILE, total: Number(result.stdout) || 0 });
       } catch (error) {
         jsonResponse(response, 200, { connected: false, vault: VAULT, taskFile: TASK_FILE, error: error.message });
