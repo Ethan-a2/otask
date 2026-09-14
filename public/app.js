@@ -4,7 +4,7 @@ const state = {
   fallback: false,
   vault: 'base',
   taskFile: 'Tasks.md',
-  view: 'inbox',
+  view: new URLSearchParams(window.location.search).get('view') || 'inbox',
   layout: 'list',
   filter: 'all',
   specialFilter: 'all',
@@ -142,7 +142,11 @@ function currentViewCopy() {
     inbox: { title: '收集箱', heading: '收集箱', subtitle: '先记下来，再安排下一步。' },
     today: { title: '今天', heading: '今天要完成什么', subtitle: '让重要的事情在截止之前完成。' },
     upcoming: { title: '即将到来', heading: '即将到来', subtitle: '提前看见接下来几天的节奏。' },
-    completed: { title: '已完成', heading: '已完成', subtitle: '回看已经完成的每一件小事。' }
+    completed: { title: '已完成', heading: '已完成', subtitle: '回看已经完成的每一件小事。' },
+    timeline: { title: '时间线', heading: '📌 项目进程', subtitle: '按项目查看任务在时间上的分布。' },
+    kanban: { title: '看板', heading: '🚀 九月计划', subtitle: '把任务按清单分组，快速掌握推进情况。' },
+    calendar: { title: '日历', heading: '日历', subtitle: '在月视图里安排和查看任务。' },
+    matrix: { title: '四象限', heading: '任务四象限', subtitle: '按重要性和紧急程度决定下一步。' }
   };
   return copies[state.view] || copies.overview;
 }
@@ -164,7 +168,12 @@ function visibleTasks() {
   let tasks = [...state.tasks];
   const project = projectView();
   if (project) tasks = tasks.filter((task) => task.project === project);
-  if (state.view === 'inbox') tasks = tasks.filter((task) => task.list === '收件箱' || task.project === '未归档');
+  if (state.view === 'inbox') {
+    const hasInboxTasks = state.tasks.some((task) => task.list === '收件箱' || task.project === '未归档');
+    tasks = hasInboxTasks
+      ? tasks.filter((task) => task.list === '收件箱' || task.project === '未归档')
+      : tasks.filter((task) => task.status !== 'done');
+  }
   if (state.view === 'today') tasks = tasks.filter((task) => task.dueDate === today);
   if (state.view === 'upcoming') tasks = tasks.filter((task) => task.dueDate >= today && task.status !== 'done');
   if (state.view === 'completed') tasks = tasks.filter((task) => task.status === 'done');
@@ -193,10 +202,14 @@ function updateSidebar() {
   $('#priority-count').textContent = active.filter((task) => ['urgent', 'high'].includes(task.priority)).length;
   $('#overdue-count').textContent = active.filter(isOverdue).length;
   $('#recurring-count').textContent = active.filter((task) => task.repeat !== 'none').length;
-  $('[data-count="inbox"]').textContent = active.filter((task) => task.list === '收件箱' || task.project === '未归档').length;
+  const hasInboxTasks = state.tasks.some((task) => task.list === '收件箱' || task.project === '未归档');
+  $('[data-count="inbox"]').textContent = hasInboxTasks
+    ? active.filter((task) => task.list === '收件箱' || task.project === '未归档').length
+    : active.length;
   $('[data-count="today"]').textContent = today.filter((task) => task.status !== 'done').length;
   $('[data-count="upcoming"]').textContent = active.filter((task) => task.dueDate >= dateKey()).length;
   $$('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === state.view));
+  $$('.view-nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === state.view));
   $$('.rail-icon[data-rail-view]').forEach((item) => item.classList.toggle('active', item.dataset.railView === state.view));
   $$('.quick-filter').forEach((item) => item.classList.toggle('active', item.dataset.quickFilter === state.specialFilter));
   const nav = $('#project-nav');
@@ -360,6 +373,95 @@ function renderTimelineView(tasks) {
   return element;
 }
 
+function viewTaskDate(task) {
+  return task.dueDate || task.deadlineDate || dateKey();
+}
+
+function renderProjectTimeline(tasks) {
+  const element = document.createElement('div');
+  element.className = 'project-timeline-view';
+  const dates = Array.from({ length: 7 }, (_, index) => shiftDate(index));
+  const projects = [...new Set(tasks.map((task) => task.project || task.list || '未归档'))];
+  const dateHeader = dates.map((date) => `<div class="project-timeline-day ${date === dateKey() ? 'today' : ''}"><span>${new Intl.DateTimeFormat('zh-CN', { weekday: 'short' }).format(new Date(`${date}T12:00:00`))}</span><strong>${new Date(`${date}T12:00:00`).getDate()}</strong></div>`).join('');
+  const rows = projects.map((project, index) => {
+    const projectTasks = tasks.filter((task) => (task.project || task.list || '未归档') === project);
+    const bars = projectTasks.map((task) => {
+      const start = dates.indexOf(viewTaskDate(task));
+      const safeStart = start < 0 ? 0 : start;
+      const endDate = task.deadlineDate || task.dueDate;
+      const end = dates.indexOf(endDate);
+      const span = Math.max(1, (end < 0 ? safeStart : end) - safeStart + 1);
+      return `<button class="project-timeline-task color-${index % 5}" data-select-id="${escapeHtml(task.id)}" style="grid-column:${safeStart + 1} / span ${Math.min(span, 7 - safeStart)}"><span>${escapeHtml(task.title)}</span><time>${escapeHtml(task.dueTime || formatDate(task.dueDate))}</time></button>`;
+    }).join('');
+    return `<section class="project-timeline-row"><div class="project-timeline-label"><span class="project-color" style="background:${projectColors[index % projectColors.length]}"></span>${escapeHtml(project)}<em>${projectTasks.length}</em></div><div class="project-timeline-track">${bars}</div></section>`;
+  }).join('');
+  element.innerHTML = `<div class="project-timeline-toolbar"><span>9月</span><div><button>今天</button><button>日⌄</button></div></div><div class="project-timeline-header"><div></div><div class="project-timeline-days">${dateHeader}</div></div>${rows}`;
+  bindTaskElements(element);
+  return element;
+}
+
+function renderKanbanView(tasks) {
+  const element = document.createElement('div');
+  element.className = 'kanban-view';
+  const columns = [...new Set(tasks.map((task) => task.project || task.list || '未归档'))];
+  element.innerHTML = columns.map((project, index) => {
+    const projectTasks = tasks.filter((task) => (task.project || task.list || '未归档') === project);
+    return `<section class="kanban-column"><header><span>${escapeHtml(project)}</span><em>${projectTasks.length}</em></header><div class="kanban-cards">${projectTasks.map((task) => `<button class="kanban-task color-${index % 5}" data-select-id="${escapeHtml(task.id)}"><span class="kanban-check"></span><strong>${escapeHtml(task.title)}</strong><time>${escapeHtml(task.dueTime || dayLabel(task.dueDate))}</time></button>`).join('')}</div></section>`;
+  }).join('');
+  bindTaskElements(element);
+  return element;
+}
+
+function monthGrid(monthDate = new Date()) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const first = new Date(year, month, 1);
+  const start = new Date(year, month, 1 - first.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return dateKey(date);
+  });
+}
+
+function renderCalendarView(tasks) {
+  const element = document.createElement('div');
+  element.className = 'calendar-view';
+  const dates = monthGrid(new Date());
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const cells = dates.map((date) => {
+    const dateObject = new Date(`${date}T12:00:00`);
+    const tasksForDay = tasks.filter((task) => viewTaskDate(task) === date);
+    const muted = dateObject.getMonth() !== new Date().getMonth();
+    return `<article class="calendar-cell ${date === dateKey() ? 'today' : ''} ${muted ? 'muted' : ''}"><div class="calendar-date">${dateObject.getDate()}</div>${tasksForDay.slice(0, 5).map((task) => `<button class="calendar-task color-${tasks.indexOf(task) % 5}" data-select-id="${escapeHtml(task.id)}"><span class="calendar-task-check"></span>${escapeHtml(task.title)}<time>${escapeHtml(task.dueTime || '')}</time></button>`).join('')}</article>`;
+  }).join('');
+  const currentLabel = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long' }).format(new Date());
+  element.innerHTML = `<div class="calendar-toolbar"><strong>${escapeHtml(currentLabel)}</strong><div><button>＋</button><button>月⌄</button><button>‹</button><button>今天</button><button>›</button><button>···</button></div></div><div class="calendar-weekdays">${weekdays.map((day) => `<span>${day}</span>`).join('')}</div><div class="calendar-grid">${cells}</div>`;
+  bindTaskElements(element);
+  return element;
+}
+
+function matrixBucket(task) {
+  if (task.priority === 'urgent') return 'important-urgent';
+  if (task.priority === 'high') return 'important-not-urgent';
+  if (task.priority === 'medium') return 'not-important-urgent';
+  return 'not-important-not-urgent';
+}
+
+function renderMatrixView(tasks) {
+  const element = document.createElement('div');
+  element.className = 'matrix-view';
+  const buckets = [
+    ['important-urgent', 'Ⅰ 重要且紧急', 'matrix-red'],
+    ['important-not-urgent', 'Ⅱ 重要不紧急', 'matrix-yellow'],
+    ['not-important-urgent', 'Ⅲ 不重要但紧急', 'matrix-blue'],
+    ['not-important-not-urgent', 'Ⅳ 不重要不紧急', 'matrix-green']
+  ];
+  element.innerHTML = buckets.map(([key, label, color]) => `<section class="matrix-quadrant ${color}"><header>${escapeHtml(label)}</header><div>${tasks.filter((task) => matrixBucket(task) === key).map((task) => `<button class="matrix-task" data-select-id="${escapeHtml(task.id)}"><span></span><strong>${escapeHtml(task.title)}</strong><time>${escapeHtml(task.dueTime || dayLabel(task.dueDate))}</time></button>`).join('')}</div></section>`).join('');
+  bindTaskElements(element);
+  return element;
+}
+
 function renderTaskView() {
   const tasks = visibleTasks();
   const view = $('#task-view');
@@ -372,7 +474,20 @@ function renderTaskView() {
     return;
   }
   empty.classList.add('hidden');
-  view.appendChild(state.layout === 'board' ? renderBoardView(tasks) : state.layout === 'timeline' ? renderTimelineView(tasks) : renderListView(tasks));
+  const renderer = state.view === 'timeline'
+    ? renderProjectTimeline
+    : state.view === 'kanban'
+      ? renderKanbanView
+      : state.view === 'calendar'
+        ? renderCalendarView
+        : state.view === 'matrix'
+          ? renderMatrixView
+          : state.layout === 'board'
+            ? renderBoardView
+            : state.layout === 'timeline'
+              ? renderTimelineView
+              : renderListView;
+  view.appendChild(renderer(tasks));
   $('#all-count').textContent = tasks.length;
 }
 
@@ -593,7 +708,7 @@ function bindEvents() {
   $('#date-filter-button').addEventListener('click', cycleDateFilter);
   $('#sort-button').addEventListener('click', () => { state.sortAscending = !state.sortAscending; render(); });
   $('#search-input').addEventListener('input', (event) => { state.query = event.target.value.trim(); renderTaskView(); });
-  $$('.nav-item, .rail-icon[data-rail-view]').forEach((item) => item.addEventListener('click', () => { state.view = item.dataset.view || item.dataset.railView; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
+  $$('.nav-item, .view-nav-item, .rail-icon[data-rail-view]').forEach((item) => item.addEventListener('click', () => { state.view = item.dataset.view || item.dataset.railView; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
   $$('.quick-filter').forEach((item) => item.addEventListener('click', () => { state.view = 'overview'; state.filter = 'all'; state.specialFilter = item.dataset.quickFilter; state.dateFilter = 'all'; render(); }));
   $$('.filter-chip').forEach((item) => item.addEventListener('click', () => { state.filter = item.dataset.filter; render(); }));
   $$('.view-tab').forEach((button) => button.addEventListener('click', () => { state.layout = button.dataset.layout; render(); }));

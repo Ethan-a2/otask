@@ -13,11 +13,11 @@
         <div class="icon-rail" aria-label="应用导航">
           <div class="rail-logo"><span></span><span></span><span></span></div>
           <button class="rail-icon active" data-rail-view="inbox" aria-label="收集箱">✓</button>
-          <button class="rail-icon" data-rail-view="today" aria-label="今天">▦</button>
-          <button class="rail-icon" data-rail-view="upcoming" aria-label="最近7天">▤</button>
-          <button class="rail-icon" data-rail-view="overview" aria-label="摘要">✣</button>
-          <button class="rail-icon" aria-label="专注">◎</button>
-          <button class="rail-icon" aria-label="日历">◷</button>
+          <button class="rail-icon" data-rail-view="timeline" aria-label="时间线">▦</button>
+          <button class="rail-icon" data-rail-view="kanban" aria-label="看板">▤</button>
+          <button class="rail-icon" data-rail-view="calendar" aria-label="日历">▦</button>
+          <button class="rail-icon" data-rail-view="matrix" aria-label="四象限">⊞</button>
+          <button class="rail-icon" data-rail-view="overview" aria-label="摘要">◎</button>
           <div class="rail-spacer"></div>
           <button class="rail-icon" aria-label="刷新" id="rail-refresh-button">↻</button>
           <button class="rail-icon" aria-label="通知">♟</button>
@@ -37,6 +37,14 @@
             <button class="nav-item active" data-view="inbox"><span class="nav-icon inbox-icon"></span><span>收集箱</span><span class="count-badge" data-count="inbox">0</span></button>
             <button class="nav-item" data-view="overview"><span class="nav-icon overview-icon"></span><span>摘要</span></button>
           </nav>
+
+          <div class="sidebar-section view-section">
+            <div class="sidebar-heading"><span>视图</span></div>
+            <button class="view-nav-item" data-view="timeline"><span>▦</span><span>时间线</span></button>
+            <button class="view-nav-item" data-view="kanban"><span>▤</span><span>看板</span></button>
+            <button class="view-nav-item" data-view="calendar"><span>▦</span><span>日历</span></button>
+            <button class="view-nav-item" data-view="matrix"><span>⊞</span><span>四象限</span></button>
+          </div>
 
           <div class="sidebar-section">
             <div class="sidebar-heading"><span>清单</span><button class="mini-add" id="add-project-button" aria-label="添加清单">+</button></div>

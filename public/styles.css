@@ -397,3 +397,128 @@ body { overflow: hidden; background: #fff; color: #222; font-family: -apple-syst
   .task-time span { font-size: 12px; }
   .heading-sort, .heading-more { display: none; }
 }
+
+/* Additional reference views */
+.view-section { margin-top: 24px; }
+.view-nav-item { width: 100%; height: 42px; padding: 0 20px; display: flex; align-items: center; gap: 13px; color: #4d4d4d; border-radius: 9px; background: transparent; text-align: left; font-size: 15px; }
+.view-nav-item:hover { background: #f7f7f7; }
+.view-nav-item.active { color: #397bea; background: #edf3ff; }
+.view-nav-item > span:first-child { width: 22px; color: #858585; font-size: 20px; text-align: center; }
+.view-nav-item.active > span:first-child { color: #397bea; }
+
+body[data-view="timeline"], body[data-view="kanban"], body[data-view="calendar"], body[data-view="matrix"] { overflow: hidden; }
+body[data-view="timeline"] .app-shell,
+body[data-view="kanban"] .app-shell,
+body[data-view="calendar"] .app-shell,
+body[data-view="matrix"] .app-shell { grid-template-columns: 25.5vw minmax(0, 1fr); }
+body[data-view="timeline"] .detail-panel,
+body[data-view="kanban"] .detail-panel,
+body[data-view="calendar"] .detail-panel,
+body[data-view="matrix"] .detail-panel { display: none; }
+body[data-view="timeline"] .task-section,
+body[data-view="kanban"] .task-section,
+body[data-view="calendar"] .task-section,
+body[data-view="matrix"] .task-section { padding: 0 36px 48px; }
+body[data-view="timeline"] .quick-add-row,
+body[data-view="kanban"] .quick-add-row,
+body[data-view="calendar"] .quick-add-row,
+body[data-view="matrix"] .quick-add-row { display: none; }
+body[data-view="timeline"] .page-heading-row,
+body[data-view="kanban"] .page-heading-row,
+body[data-view="calendar"] .page-heading-row,
+body[data-view="matrix"] .page-heading-row { padding-left: 36px; padding-right: 36px; }
+body[data-view="timeline"] .task-view,
+body[data-view="kanban"] .task-view,
+body[data-view="calendar"] .task-view,
+body[data-view="matrix"] .task-view { min-height: calc(100vh - 78px); }
+
+.project-timeline-view { width: 100%; padding-top: 10px; }
+.project-timeline-toolbar { height: 55px; display: flex; align-items: center; justify-content: space-between; color: #a0a0a0; font-size: 14px; }
+.project-timeline-toolbar > div { display: flex; gap: 8px; }
+.project-timeline-toolbar button, .calendar-toolbar button { height: 34px; padding: 0 13px; color: #555; border: 1px solid #e3e3e3; border-radius: 17px; background: #fff; font-size: 13px; }
+.project-timeline-toolbar button:hover, .calendar-toolbar button:hover { color: #397bea; border-color: #c7d8ff; }
+.project-timeline-header { display: grid; grid-template-columns: 200px minmax(0, 1fr); height: 70px; border-top: 1px solid #f0f0f0; border-bottom: 1px solid #eeeeee; }
+.project-timeline-days { display: grid; grid-template-columns: repeat(7, minmax(70px, 1fr)); }
+.project-timeline-day { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #aaa; border-left: 1px solid #f3f3f3; font-size: 12px; }
+.project-timeline-day strong { color: #555; font-size: 16px; font-weight: 500; }
+.project-timeline-day.today span, .project-timeline-day.today strong { color: #df6e78; }
+.project-timeline-row { display: grid; grid-template-columns: 200px minmax(0, 1fr); min-height: 112px; border-bottom: 1px solid #f0f0f0; }
+.project-timeline-label { display: flex; align-items: flex-start; gap: 10px; padding: 28px 20px 0 8px; color: #353535; font-size: 16px; font-weight: 600; }
+.project-timeline-label .project-color { margin-top: 5px; width: 10px; height: 10px; }
+.project-timeline-label em { margin-left: auto; color: #aaa; font-size: 12px; font-style: normal; font-weight: 400; }
+.project-timeline-track { position: relative; display: grid; grid-template-columns: repeat(7, minmax(70px, 1fr)); align-items: start; gap: 10px; padding: 19px 7px; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(14.2857% - 1px), #f7f7f7 calc(14.2857% - 1px), #f7f7f7 14.2857%); }
+.project-timeline-task { min-width: 0; height: 40px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow: hidden; color: #273b68; border: 0; border-radius: 11px; background: #c9d9ff; text-align: left; font-size: 15px; }
+.project-timeline-task:hover { filter: brightness(.98); box-shadow: 0 3px 10px rgba(60,90,150,.12); }
+.project-timeline-task span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-timeline-task time { flex: 0 0 auto; color: #6585c9; font-size: 11px; }
+.project-timeline-task.color-1 { color: #215f74; background: #c9eff4; }
+.project-timeline-task.color-2 { color: #376c2d; background: #daf5cb; }
+.project-timeline-task.color-3 { color: #8c4e65; background: #f9cee1; }
+.project-timeline-task.color-4 { color: #826e2c; background: #fff0bd; }
+
+.kanban-view { min-height: calc(100vh - 150px); padding-top: 16px; display: grid; grid-template-columns: repeat(4, minmax(190px, 1fr)); gap: 26px; }
+.kanban-column { min-width: 0; }
+.kanban-column > header { height: 44px; display: flex; align-items: center; gap: 8px; color: #353535; border-bottom: 1px solid #eee; font-size: 17px; font-weight: 600; }
+.kanban-column > header em { color: #aaa; font-size: 12px; font-style: normal; font-weight: 400; }
+.kanban-cards { display: grid; gap: 13px; padding-top: 12px; }
+.kanban-task { min-height: 88px; padding: 15px 17px; display: grid; grid-template-columns: 21px minmax(0, 1fr); align-content: center; column-gap: 10px; row-gap: 6px; border: 1px solid #ededed; border-radius: 15px; background: #fff; text-align: left; box-shadow: 0 3px 11px rgba(20,30,50,.03); }
+.kanban-task:hover { border-color: #c9d8f7; box-shadow: 0 5px 15px rgba(46,82,150,.08); }
+.kanban-check { width: 18px; height: 18px; grid-row: span 2; border: 2px solid #bbb; border-radius: 5px; }
+.kanban-task.color-0 .kanban-check { border-color: #ee626b; }
+.kanban-task.color-1 .kanban-check { border-color: #648fe8; }
+.kanban-task.color-2 .kanban-check { border-color: #e5b72e; }
+.kanban-task.color-3 .kanban-check { border-color: #64b78e; }
+.kanban-task strong { overflow: hidden; color: #454545; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 400; }
+.kanban-task time { color: #6090e7; font-size: 12px; }
+
+.calendar-view { min-height: calc(100vh - 150px); padding-top: 14px; }
+.calendar-toolbar { height: 54px; display: flex; align-items: center; justify-content: space-between; }
+.calendar-toolbar strong { color: #262626; font-size: 24px; }
+.calendar-toolbar > div { display: flex; gap: 8px; }
+.calendar-toolbar > div button:first-child { width: 42px; padding: 0; font-size: 22px; }
+.calendar-toolbar > div button:nth-child(3), .calendar-toolbar > div button:nth-child(5) { width: 38px; padding: 0; font-size: 21px; }
+.calendar-weekdays { height: 42px; display: grid; grid-template-columns: repeat(7, 1fr); align-items: center; color: #aaa; border-bottom: 1px solid #eee; text-align: center; font-size: 13px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(6, minmax(120px, 1fr)); min-height: calc(100vh - 270px); border-left: 1px solid #f1f1f1; }
+.calendar-cell { min-width: 0; padding: 9px 7px; overflow: hidden; border-right: 1px solid #f1f1f1; border-bottom: 1px solid #f1f1f1; }
+.calendar-date { width: 27px; height: 27px; display: grid; place-items: center; margin-bottom: 6px; color: #333; border-radius: 50%; font-size: 14px; }
+.calendar-cell.today .calendar-date { color: #fff; background: #477fe9; }
+.calendar-cell.muted .calendar-date { color: #bbb; }
+.calendar-task { width: 100%; min-height: 25px; margin-bottom: 4px; padding: 3px 5px; display: grid; grid-template-columns: 10px minmax(0, 1fr); align-items: center; column-gap: 5px; overflow: hidden; color: #4e617b; border: 0; border-radius: 4px; background: #dce8fb; text-align: left; font-size: 11px; }
+.calendar-task:hover { filter: brightness(.97); }
+.calendar-task-check { width: 9px; height: 9px; border: 1px solid currentColor; border-radius: 2px; }
+.calendar-task time { grid-column: 2; color: #7895c8; font-size: 9px; }
+.calendar-task.color-1 { color: #3e838d; background: #d9f3ee; }
+.calendar-task.color-2 { color: #4f843c; background: #ddf2d3; }
+.calendar-task.color-3 { color: #9a5c79; background: #fae0ed; }
+.calendar-task.color-4 { color: #8c763b; background: #fff2c7; }
+
+.matrix-view { min-height: calc(100vh - 150px); padding: 28px 10vw 40px; display: grid; grid-template-columns: repeat(2, minmax(300px, 1fr)); gap: 30px; background: #fff; }
+.matrix-quadrant { min-height: 330px; padding: 27px 30px; border: 1px solid #ebebeb; border-radius: 28px; background: #fff; box-shadow: 0 8px 24px rgba(25,35,50,.06); }
+.matrix-quadrant header { margin-bottom: 18px; font-size: 20px; font-weight: 600; }
+.matrix-red header { color: #ee646b; }
+.matrix-yellow header { color: #e3ad18; }
+.matrix-blue header { color: #477fe9; }
+.matrix-green header { color: #24bd9b; }
+.matrix-task { width: 100%; min-height: 58px; padding: 0 5px; display: grid; grid-template-columns: 25px minmax(0,1fr) auto; align-items: center; gap: 8px; border-bottom: 1px solid #f0f0f0; background: transparent; text-align: left; }
+.matrix-task:hover { background: #fafafa; }
+.matrix-task > span { width: 24px; height: 24px; border: 2px solid #b7b7b7; border-radius: 6px; }
+.matrix-red .matrix-task > span { border-color: #ed646c; }
+.matrix-yellow .matrix-task > span { border-color: #edb327; }
+.matrix-blue .matrix-task > span { border-color: #6291ed; }
+.matrix-task strong { overflow: hidden; color: #383838; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 400; }
+.matrix-task time { color: #6190e7; font-size: 13px; }
+
+@media (max-width: 1100px) {
+  body[data-view="timeline"] .task-section, body[data-view="kanban"] .task-section, body[data-view="calendar"] .task-section, body[data-view="matrix"] .task-section { padding-left: 24px; padding-right: 24px; }
+  .project-timeline-header, .project-timeline-row { grid-template-columns: 150px minmax(0, 1fr); }
+  .matrix-view { padding-left: 4vw; padding-right: 4vw; }
+}
+@media (max-width: 760px) {
+  body[data-view="timeline"], body[data-view="kanban"], body[data-view="calendar"], body[data-view="matrix"] { overflow: auto; }
+  body[data-view="timeline"] .app-shell, body[data-view="kanban"] .app-shell, body[data-view="calendar"] .app-shell, body[data-view="matrix"] .app-shell { display: block; }
+  .view-section { display: none; }
+  .project-timeline-view { min-width: 760px; }
+  .kanban-view { min-width: 760px; }
+  .calendar-view { min-width: 760px; }
+  .matrix-view { grid-template-columns: 1fr; padding: 20px 0; }
+}
