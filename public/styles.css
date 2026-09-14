@@ -269,6 +269,7 @@ body { overflow: hidden; background: #fff; color: #222; font-family: -apple-syst
 .rail-spacer { flex: 1; }
 .sidebar-pane { width: calc(100% - 88px); min-width: 0; padding: 24px 16px 18px; display: flex; flex-direction: column; background: #fff; }
 .sidebar-pane .brand-row, .sidebar-pane .new-task-button, .sidebar-pane .sidebar-label, .sidebar-pane .connection-card, .sidebar-pane .sidebar-footer, .sidebar-pane .filter-section { display: none; }
+.sidebar-pane .view-section { display: none; }
 .nav-list { margin-top: 2px; gap: 5px; }
 .nav-item { height: 50px; padding: 0 20px; gap: 13px; border-radius: 12px; color: #242424; font-size: 16px; font-weight: 400; }
 .nav-item:hover { color: #222; background: #f6f6f6; }
@@ -446,7 +447,7 @@ body[data-view="matrix"] .task-view { min-height: calc(100vh - 78px); }
 .project-timeline-label { display: flex; align-items: flex-start; gap: 10px; padding: 28px 20px 0 8px; color: #353535; font-size: 16px; font-weight: 600; }
 .project-timeline-label .project-color { margin-top: 5px; width: 10px; height: 10px; }
 .project-timeline-label em { margin-left: auto; color: #aaa; font-size: 12px; font-style: normal; font-weight: 400; }
-.project-timeline-track { position: relative; display: grid; grid-template-columns: repeat(7, minmax(70px, 1fr)); align-items: start; gap: 10px; padding: 19px 7px; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(14.2857% - 1px), #f7f7f7 calc(14.2857% - 1px), #f7f7f7 14.2857%); }
+.project-timeline-track { position: relative; display: grid; grid-template-columns: repeat(7, minmax(70px, 1fr)); grid-template-rows: repeat(2, 40px); align-items: start; gap: 10px; padding: 19px 7px; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(14.2857% - 1px), #f7f7f7 calc(14.2857% - 1px), #f7f7f7 14.2857%); }
 .project-timeline-task { min-width: 0; height: 40px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow: hidden; color: #273b68; border: 0; border-radius: 11px; background: #c9d9ff; text-align: left; font-size: 15px; }
 .project-timeline-task:hover { filter: brightness(.98); box-shadow: 0 3px 10px rgba(60,90,150,.12); }
 .project-timeline-task span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -492,9 +493,10 @@ body[data-view="matrix"] .task-view { min-height: calc(100vh - 78px); }
 .calendar-task.color-3 { color: #9a5c79; background: #fae0ed; }
 .calendar-task.color-4 { color: #8c763b; background: #fff2c7; }
 
-.matrix-view { min-height: calc(100vh - 150px); padding: 28px 10vw 40px; display: grid; grid-template-columns: repeat(2, minmax(300px, 1fr)); gap: 30px; background: #fff; }
-.matrix-quadrant { min-height: 330px; padding: 27px 30px; border: 1px solid #ebebeb; border-radius: 28px; background: #fff; box-shadow: 0 8px 24px rgba(25,35,50,.06); }
+.matrix-view { height: calc(100vh - 78px); min-height: 0; padding: 28px 10vw 40px; display: grid; grid-template-columns: repeat(2, minmax(300px, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 30px; overflow: hidden; background: #fff; }
+.matrix-quadrant { min-height: 0; padding: 27px 30px; display: flex; flex-direction: column; border: 1px solid #ebebeb; border-radius: 28px; overflow: hidden; background: #fff; box-shadow: 0 8px 24px rgba(25,35,50,.06); }
 .matrix-quadrant header { margin-bottom: 18px; font-size: 20px; font-weight: 600; }
+.matrix-quadrant > div { min-height: 0; overflow: auto; }
 .matrix-red header { color: #ee646b; }
 .matrix-yellow header { color: #e3ad18; }
 .matrix-blue header { color: #477fe9; }

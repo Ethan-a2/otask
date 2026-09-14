@@ -94,8 +94,10 @@ function parseTaskText(rawText) {
   const deadlineMarker = raw.match(/⏳\s*(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}:\d{2}))?/u);
   const priorityMarker = raw.match(/🔴|🟠|🟡|🟢/u)?.[0] || '';
   const repeatMarker = raw.match(/🔁\s*(daily|weekdays|weekly|monthly)/iu)?.[1]?.toLowerCase() || '';
-  const due = metadata.dueDate ? { date: String(metadata.dueDate), time: String(metadata.dueTime || '') } : splitDateTime(metadata.due || (dueMarker ? `${dueMarker[1]} ${dueMarker[2] || ''}` : ''));
-  const deadline = metadata.deadlineDate ? { date: String(metadata.deadlineDate), time: String(metadata.deadlineTime || '') } : splitDateTime(metadata.deadline || (deadlineMarker ? `${deadlineMarker[1]} ${deadlineMarker[2] || ''}` : ''));
+  const metadataDue = metadata.dueDate ? { date: String(metadata.dueDate), time: String(metadata.dueTime || '') } : splitDateTime(metadata.due);
+  const metadataDeadline = metadata.deadlineDate ? { date: String(metadata.deadlineDate), time: String(metadata.deadlineTime || '') } : splitDateTime(metadata.deadline);
+  const due = dueMarker ? { date: dueMarker[1], time: dueMarker[2]?.padStart(5, '0') || metadataDue.time } : metadataDue;
+  const deadline = deadlineMarker ? { date: deadlineMarker[1], time: deadlineMarker[2]?.padStart(5, '0') || metadataDeadline.time } : metadataDeadline;
   const fallbackPriority = { '🔴': 'urgent', '🟠': 'high', '🟡': 'medium', '🟢': 'low' }[priorityMarker] || 'none';
   const tags = [...raw.matchAll(/(^|\s)#([^\s#]+)/gu)].map((match) => match[2]).filter((tag) => tag !== 'taskbase');
   const rawStatus = checkbox?.[1] || '';
@@ -146,7 +148,9 @@ function normalizeRecord(record, index) {
   const tagsValue = valueFrom(record, ['tags', 'tag']);
   const tags = Array.isArray(tagsValue) ? tagsValue.map(String) : parsed.tags;
   const completed = record && typeof record === 'object' && (record.completed === true || record.done === true);
-  const status = normalizeStatus(valueFrom(record, ['status', 'symbol', 'completion']) || parsed.status, completed);
+  const parsedStatus = String(parsed.status || '').trim();
+  const recordStatus = valueFrom(record, ['status', 'symbol', 'completion']);
+  const status = normalizeStatus(parsedStatus || recordStatus, completed);
   const title = String(valueFrom(record, ['title', 'name']) || parsed.title).trim();
   const task = {
     id: createId(`${sourcePath}:${line}`),
@@ -223,7 +227,7 @@ function safeTaskInput(body) {
 
 async function loadTasks() {
   try {
-    const result = await runObsidian(['tasks', 'verbose', 'format=json']);
+    const result = await runObsidian(['tasks', `path=${TASK_FILE}`, 'verbose', 'format=json']);
     return { tasks: parseTasksOutput(result.stdout), connected: true, fallback: false, vault: VAULT, taskFile: TASK_FILE };
   } catch (error) {
     return { tasks: demoTasks(), connected: false, fallback: true, vault: VAULT, taskFile: TASK_FILE, error: error.message };
@@ -292,18 +296,114 @@ function demoTasks() {
 }
 
 async function seedTasks() {
+  const sample = (title, offset, dueTime, project, list, priority = 'none', options = {}) => {
+    const deadlineOffset = Number.isInteger(options.deadlineOffset) ? options.deadlineOffset : offset;
+    return {
+      title,
+      dueDate: localDate(offset),
+      dueTime,
+      deadlineDate: localDate(deadlineOffset),
+      deadlineTime: options.deadlineTime || dueTime,
+      project,
+      list,
+      priority,
+      status: options.status || 'todo',
+      repeat: options.repeat || 'none',
+      tags: options.tags || [],
+      note: options.note || ''
+    };
+  };
+  const product = '📈 产品';
+  const design = '🎨 设计';
+  const development = '🧑‍💻 开发';
+  const operations = '✨ 运营';
+  const testing = '✓ 测试';
+  const work = '努力工作';
+  const life = '用心生活';
+  const growth = '个人提升';
+  const memo = '个人备忘';
+  const shoppingNote = '子任务：鸡蛋、牛奶、面包、纸巾、沐浴露。';
   const samples = [
-    { title: '确认数据看板口径', dueDate: localDate(-1), dueTime: '16:00', deadlineDate: localDate(-1), deadlineTime: '18:00', project: '团队协作', list: '团队协作', priority: 'medium', status: 'done', repeat: 'none', tags: ['数据'], note: '已和数据团队完成口径确认。' },
-    { title: '梳理下周迭代范围', dueDate: localDate(1), dueTime: '09:30', deadlineDate: localDate(1), deadlineTime: '12:00', project: '产品升级', list: '产品升级', priority: 'high', status: 'in-progress', repeat: 'none', tags: ['计划', '工作'], note: '和研发、设计一起确认范围。' },
-    { title: '整理用户访谈录音', dueDate: localDate(2), dueTime: '14:00', deadlineDate: localDate(2), deadlineTime: '17:00', project: '研究项目', list: '研究项目', priority: 'medium', status: 'todo', repeat: 'none', tags: ['研究'] },
-    { title: '晚间拉伸 15 分钟', dueDate: localDate(3), dueTime: '21:00', deadlineDate: localDate(3), deadlineTime: '22:00', project: '个人生活', list: '个人生活', priority: 'low', status: 'todo', repeat: 'daily', tags: ['健康'] },
-    { title: '发送周报', dueDate: localDate(0), dueTime: '17:30', deadlineDate: localDate(0), deadlineTime: '18:00', project: '团队协作', list: '团队协作', priority: 'urgent', status: 'blocked', repeat: 'weekly', tags: ['沟通'], note: '等待数据团队补充本周数据。' }
+    sample('项目启动', 0, '09:00', product, work, 'high', { deadlineOffset: 1, deadlineTime: '12:00', tags: ['项目'] }),
+    sample('产品文档交付', 1, '09:00', product, work, 'high', { deadlineOffset: 2, deadlineTime: '18:00', tags: ['产品'] }),
+    sample('跟进用户反馈', 1, '13:00', product, work, 'medium', { deadlineOffset: 2, deadlineTime: '17:00', tags: ['用户'] }),
+    sample('数据分析', 2, '10:00', product, work, 'medium', { tags: ['数据'] }),
+    sample('产品评审', 1, '15:00', product, work, 'urgent', { tags: ['评审'] }),
+    sample('设计调研', 0, '09:00', design, growth, 'medium', { deadlineOffset: 1, deadlineTime: '18:00', tags: ['设计'] }),
+    sample('UI设计', 1, '10:00', design, growth, 'high', { deadlineOffset: 2, deadlineTime: '18:00', tags: ['设计'] }),
+    sample('设计评审', 3, '14:00', design, growth, 'high', { tags: ['评审'] }),
+    sample('技术调研', 1, '09:00', development, work, 'medium', { deadlineOffset: 2, deadlineTime: '18:00', tags: ['技术'] }),
+    sample('页面开发', 3, '10:00', development, work, 'high', { deadlineOffset: 5, deadlineTime: '18:00', tags: ['开发'] }),
+    sample('制定运营策略', 2, '09:00', operations, work, 'high', { deadlineOffset: 3, deadlineTime: '18:00', tags: ['运营'] }),
+    sample('活动内容规划', 3, '13:00', operations, work, 'medium', { deadlineOffset: 4, deadlineTime: '18:00', tags: ['运营'] }),
+    sample('初稿', 4, '15:00', operations, work, 'low', { tags: ['内容'] }),
+    sample('测试计划', 3, '09:00', testing, work, 'high', { deadlineOffset: 4, deadlineTime: '18:00', tags: ['测试'] }),
+    sample('测试用例设计', 4, '10:00', testing, work, 'medium', { deadlineOffset: 5, deadlineTime: '18:00', tags: ['测试'] }),
+
+    sample('实习生面试', 0, '10:00', product, work, 'urgent', { tags: ['招聘'] }),
+    sample('跟进外部合作', 0, '13:00', product, work, 'high', { tags: ['合作'] }),
+    sample('出席会议', 1, '10:00', product, work, 'medium', { tags: ['会议'] }),
+    sample('发言稿准备', 2, '09:00', operations, work, 'medium', { tags: ['沟通'] }),
+    sample('宣传物料', 3, '10:00', operations, work, 'low', { tags: ['内容'] }),
+    sample('组织项目会议', 4, '13:00', product, work, 'high', { tags: ['会议'] }),
+    sample('资源盘点', 4, '15:00', development, work, 'none', { tags: ['整理'] }),
+    sample('晨跑', 0, '07:00', design, life, 'none', { repeat: 'daily', tags: ['健康'] }),
+    sample('拿快递', 1, '18:00', operations, life, 'none', { tags: ['生活'] }),
+    sample('买狗粮', 2, '18:30', operations, life, 'none', { tags: ['生活'] }),
+    sample('周末和家人共进晚餐', 4, '19:00', operations, life, 'high', { tags: ['家庭'] }),
+    sample('数据分析大会', 5, '09:00', product, growth, 'urgent', { tags: ['学习'] }),
+    sample('内部培训', 6, '14:00', development, growth, 'high', { tags: ['培训'] }),
+    sample('烘焙课', 7, '10:00', design, growth, 'none', { tags: ['兴趣'] }),
+    sample('阅读专业书籍', 8, '20:00', design, growth, 'none', { tags: ['学习'] }),
+    sample('部门培训', 9, '14:00', development, growth, 'medium', { tags: ['培训'] }),
+    sample('瑜伽课', 10, '18:00', design, growth, 'none', { tags: ['健康'] }),
+    sample('订机票', 11, '21:00', operations, memo, 'low', { tags: ['出行'] }),
+
+    sample('去超市买东西', 0, '09:00', operations, life, 'medium', { note: shoppingNote, tags: ['购物'] }),
+    sample('制定营销策略', 1, '10:00', operations, work, 'high', { tags: ['营销'] }),
+    sample('ins 初稿', 2, '11:00', operations, work, 'none', { tags: ['内容'] }),
+    sample('看望老人', 3, '15:00', operations, life, 'none', { tags: ['家庭'] }),
+    sample('准备出行计划', 4, '08:00', operations, memo, 'high', { tags: ['出行'] }),
+    sample('确认周末天气', 4, '09:00', operations, memo, 'none', { tags: ['生活'] }),
+    sample('和李雷沟通工作', 5, '09:00', product, work, 'high', { tags: ['沟通'] }),
+    sample('公司运动会', 6, '10:00', operations, life, 'none', { tags: ['运动'] }),
+    sample('同学聚会', 6, '18:00', operations, life, 'none', { tags: ['社交'] }),
+    sample('修剪花园植物', -1, '08:00', operations, life, 'none', { tags: ['家务'] }),
+    sample('和妈妈逛街', -1, '13:00', operations, life, 'none', { tags: ['家庭'] }),
+    sample('月度账单', -2, '09:00', product, memo, 'high', { tags: ['财务'] }),
+    sample('制定预算', -2, '14:00', product, memo, 'high', { tags: ['财务'] }),
+    sample('写日报', -2, '17:00', product, work, 'medium', { tags: ['工作'] }),
+    sample('学习基础编程', -2, '20:00', development, growth, 'medium', { tags: ['学习'] }),
+    sample('参加社区活动', -1, '16:00', operations, life, 'none', { tags: ['社交'] }),
+    sample('用户反馈跟进', 0, '16:00', product, work, 'high', { tags: ['用户'] }),
+    sample('版本更新', 2, '18:00', development, work, 'high', { tags: ['发布'] }),
+    sample('社群运营', 5, '11:00', operations, work, 'medium', { tags: ['运营'] }),
+    sample('主持项目会议', 7, '14:00', product, work, 'high', { tags: ['会议'] }),
+
+    sample('工作汇报', 0, '09:00', product, work, 'urgent', { tags: ['工作'] }),
+    sample('参加项目会议', 1, '10:00', product, work, 'urgent', { tags: ['会议'] }),
+    sample('完成客户方案', 2, '16:00', product, work, 'urgent', { tags: ['客户'] }),
+    sample('制定工作计划', 1, '08:00', product, work, 'high', { tags: ['计划'] }),
+    sample('参加每周例会', 3, '10:00', product, work, 'high', { repeat: 'weekly', tags: ['会议'] }),
+    sample('回复客户电话', 0, '13:00', product, work, 'medium', { tags: ['客户'] }),
+    sample('处理工作邮件', 1, '14:00', product, work, 'medium', { tags: ['沟通'] }),
+    sample('预定机票', 2, '22:00', operations, memo, 'low', { tags: ['出行'] }),
+    sample('玩游戏', 1, '22:00', operations, life, 'none', { tags: ['娱乐'] }),
+    sample('整理办公室桌面', 3, '20:00', operations, memo, 'none', { tags: ['整理'] }),
+    sample('鸡蛋', 0, '09:30', operations, life, 'none', { tags: ['购物'] }),
+    sample('牛奶', 0, '09:30', operations, life, 'none', { tags: ['购物'] }),
+    sample('面包', 0, '09:30', operations, life, 'none', { tags: ['购物'] }),
+    sample('纸巾', 0, '09:30', operations, life, 'none', { tags: ['购物'] }),
+    sample('沐浴露', 0, '09:30', operations, life, 'none', { tags: ['购物'] })
   ];
   const current = await loadTasks();
   const existingTitles = new Set(current.tasks.map((item) => item.title));
   const created = [];
-  for (const sample of samples) {
-    if (!existingTitles.has(sample.title)) created.push(await createTask(sample));
+  for (const sampleTask of samples) {
+    if (!existingTitles.has(sampleTask.title)) {
+      created.push(await createTask(sampleTask));
+      existingTitles.add(sampleTask.title);
+    }
   }
   return { created: created.length, samples };
 }
@@ -341,7 +441,7 @@ async function handleApi(request, response, url) {
     }
     if (request.method === 'GET' && url.pathname === '/api/health') {
       try {
-        const result = await runObsidian(['tasks', 'total']);
+        const result = await runObsidian(['tasks', `path=${TASK_FILE}`, 'total']);
         jsonResponse(response, 200, { connected: true, vault: VAULT, taskFile: TASK_FILE, total: Number(result.stdout) || 0 });
       } catch (error) {
         jsonResponse(response, 200, { connected: false, vault: VAULT, taskFile: TASK_FILE, error: error.message });

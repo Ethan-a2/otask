@@ -4,7 +4,7 @@ const state = {
   fallback: false,
   vault: 'base',
   taskFile: 'Tasks.md',
-  view: new URLSearchParams(window.location.search).get('view') || 'inbox',
+  view: ['overview', 'summary'].includes(new URLSearchParams(window.location.search).get('view')) ? 'inbox' : new URLSearchParams(window.location.search).get('view') || 'inbox',
   layout: 'list',
   filter: 'all',
   specialFilter: 'all',
@@ -138,7 +138,6 @@ function currentViewCopy() {
   const project = projectView();
   if (project) return { title: project, heading: `${project} 项目`, subtitle: '围绕同一个目标，推进每一个下一步。' };
   const copies = {
-    overview: { title: '总览', heading: '今天的节奏', subtitle: '先看全局，再决定下一步。' },
     inbox: { title: '收集箱', heading: '收集箱', subtitle: '先记下来，再安排下一步。' },
     today: { title: '今天', heading: '今天要完成什么', subtitle: '让重要的事情在截止之前完成。' },
     upcoming: { title: '即将到来', heading: '即将到来', subtitle: '提前看见接下来几天的节奏。' },
@@ -148,7 +147,7 @@ function currentViewCopy() {
     calendar: { title: '日历', heading: '日历', subtitle: '在月视图里安排和查看任务。' },
     matrix: { title: '四象限', heading: '任务四象限', subtitle: '按重要性和紧急程度决定下一步。' }
   };
-  return copies[state.view] || copies.overview;
+  return copies[state.view] || copies.inbox;
 }
 
 function isOverdue(task) {
@@ -168,12 +167,8 @@ function visibleTasks() {
   let tasks = [...state.tasks];
   const project = projectView();
   if (project) tasks = tasks.filter((task) => task.project === project);
-  if (state.view === 'inbox') {
-    const hasInboxTasks = state.tasks.some((task) => task.list === '收件箱' || task.project === '未归档');
-    tasks = hasInboxTasks
-      ? tasks.filter((task) => task.list === '收件箱' || task.project === '未归档')
-      : tasks.filter((task) => task.status !== 'done');
-  }
+  if (state.view === 'inbox') tasks = tasks.filter((task) => task.status !== 'done');
+  if (['timeline', 'kanban', 'calendar', 'matrix'].includes(state.view)) tasks = tasks.filter((task) => task.status !== 'done');
   if (state.view === 'today') tasks = tasks.filter((task) => task.dueDate === today);
   if (state.view === 'upcoming') tasks = tasks.filter((task) => task.dueDate >= today && task.status !== 'done');
   if (state.view === 'completed') tasks = tasks.filter((task) => task.status === 'done');
@@ -189,6 +184,11 @@ function visibleTasks() {
     tasks = tasks.filter((task) => `${task.title} ${task.note} ${task.project} ${task.list} ${(task.tags || []).join(' ')}`.toLowerCase().includes(query));
   }
   tasks.sort((left, right) => {
+    if (state.view === 'inbox') {
+      const relativeRank = (date) => date === today ? 0 : date > today ? 1 : 2;
+      const rankDifference = relativeRank(left.dueDate) - relativeRank(right.dueDate);
+      if (rankDifference !== 0) return rankDifference;
+    }
     const leftKey = `${left.dueDate} ${left.dueTime || '23:59'}`;
     const rightKey = `${right.dueDate} ${right.dueTime || '23:59'}`;
     return state.sortAscending ? leftKey.localeCompare(rightKey) : rightKey.localeCompare(leftKey);
@@ -202,10 +202,7 @@ function updateSidebar() {
   $('#priority-count').textContent = active.filter((task) => ['urgent', 'high'].includes(task.priority)).length;
   $('#overdue-count').textContent = active.filter(isOverdue).length;
   $('#recurring-count').textContent = active.filter((task) => task.repeat !== 'none').length;
-  const hasInboxTasks = state.tasks.some((task) => task.list === '收件箱' || task.project === '未归档');
-  $('[data-count="inbox"]').textContent = hasInboxTasks
-    ? active.filter((task) => task.list === '收件箱' || task.project === '未归档').length
-    : active.length;
+  $('[data-count="inbox"]').textContent = active.length;
   $('[data-count="today"]').textContent = today.filter((task) => task.status !== 'done').length;
   $('[data-count="upcoming"]').textContent = active.filter((task) => task.dueDate >= dateKey()).length;
   $$('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === state.view));
@@ -232,7 +229,7 @@ function renderHeader() {
   $('#page-heading').textContent = copy.heading;
   $('#page-subheading').textContent = copy.subtitle;
   $('#today-label').textContent = todayLabel();
-  $('#task-section-title').textContent = state.view === 'overview' ? '全部任务' : copy.title;
+  $('#task-section-title').textContent = copy.title;
   $('#date-filter-button').innerHTML = `${state.dateFilter === 'today' ? '⌗ 今天' : state.dateFilter === 'next7' ? '⌗ 未来 7 天' : state.dateFilter === 'overdue' ? '⌗ 已逾期' : '⌗ 日期'} <span>⌄</span>`;
   $('#sort-button').textContent = state.sortAscending ? '↕ 按时间' : '↕ 倒序排列';
   $$('.filter-chip').forEach((button) => button.classList.toggle('active', button.dataset.filter === state.filter));
@@ -381,21 +378,34 @@ function renderProjectTimeline(tasks) {
   const element = document.createElement('div');
   element.className = 'project-timeline-view';
   const dates = Array.from({ length: 7 }, (_, index) => shiftDate(index));
-  const projects = [...new Set(tasks.map((task) => task.project || task.list || '未归档'))];
+  const firstDate = dates[0];
+  const lastDate = dates[dates.length - 1];
+  const timelineTasks = tasks.filter((task) => viewTaskDate(task) <= lastDate && (task.deadlineDate || viewTaskDate(task)) >= firstDate);
+  const projects = [...new Set(timelineTasks.map((task) => task.project || task.list || '未归档'))];
   const dateHeader = dates.map((date) => `<div class="project-timeline-day ${date === dateKey() ? 'today' : ''}"><span>${new Intl.DateTimeFormat('zh-CN', { weekday: 'short' }).format(new Date(`${date}T12:00:00`))}</span><strong>${new Date(`${date}T12:00:00`).getDate()}</strong></div>`).join('');
   const rows = projects.map((project, index) => {
-    const projectTasks = tasks.filter((task) => (task.project || task.list || '未归档') === project);
-    const bars = projectTasks.map((task) => {
-      const start = dates.indexOf(viewTaskDate(task));
-      const safeStart = start < 0 ? 0 : start;
+    const projectTasks = timelineTasks.filter((task) => (task.project || task.list || '未归档') === project);
+    const laneEnds = [-1, -1];
+    const scheduledTasks = projectTasks.map((task) => {
+      const taskDate = viewTaskDate(task);
+      const start = dates.indexOf(taskDate);
+      const safeStart = taskDate < firstDate ? 0 : start;
       const endDate = task.deadlineDate || task.dueDate;
       const end = dates.indexOf(endDate);
-      const span = Math.max(1, (end < 0 ? safeStart : end) - safeStart + 1);
-      return `<button class="project-timeline-task color-${index % 5}" data-select-id="${escapeHtml(task.id)}" style="grid-column:${safeStart + 1} / span ${Math.min(span, 7 - safeStart)}"><span>${escapeHtml(task.title)}</span><time>${escapeHtml(task.dueTime || formatDate(task.dueDate))}</time></button>`;
+      const safeEnd = endDate > lastDate ? dates.length - 1 : Math.max(safeStart, end);
+      return { task, safeStart, safeEnd };
+    }).sort((left, right) => left.safeStart - right.safeStart || right.safeEnd - left.safeEnd || (left.task.dueTime || '').localeCompare(right.task.dueTime || ''));
+    const bars = scheduledTasks.map((item) => {
+      const lane = laneEnds.findIndex((laneEnd) => item.safeStart > laneEnd);
+      if (lane < 0) return '';
+      laneEnds[lane] = item.safeEnd;
+      const span = Math.max(1, item.safeEnd - item.safeStart + 1);
+      return `<button class="project-timeline-task color-${index % 5}" data-select-id="${escapeHtml(item.task.id)}" style="grid-column:${item.safeStart + 1} / span ${Math.min(span, 7 - item.safeStart)};grid-row:${lane + 1}"><span>${escapeHtml(item.task.title)}</span><time>${escapeHtml(item.task.dueTime || formatDate(item.task.dueDate))}</time></button>`;
     }).join('');
     return `<section class="project-timeline-row"><div class="project-timeline-label"><span class="project-color" style="background:${projectColors[index % projectColors.length]}"></span>${escapeHtml(project)}<em>${projectTasks.length}</em></div><div class="project-timeline-track">${bars}</div></section>`;
   }).join('');
-  element.innerHTML = `<div class="project-timeline-toolbar"><span>9月</span><div><button>今天</button><button>日⌄</button></div></div><div class="project-timeline-header"><div></div><div class="project-timeline-days">${dateHeader}</div></div>${rows}`;
+  const monthLabel = new Intl.DateTimeFormat('zh-CN', { month: 'long' }).format(new Date());
+  element.innerHTML = `<div class="project-timeline-toolbar"><span>${escapeHtml(monthLabel)}</span><div><button>今天</button><button>日⌄</button></div></div><div class="project-timeline-header"><div></div><div class="project-timeline-days">${dateHeader}</div></div>${rows}`;
   bindTaskElements(element);
   return element;
 }
@@ -403,9 +413,17 @@ function renderProjectTimeline(tasks) {
 function renderKanbanView(tasks) {
   const element = document.createElement('div');
   element.className = 'kanban-view';
-  const columns = [...new Set(tasks.map((task) => task.project || task.list || '未归档'))];
+  const boardGroups = ['努力工作', '用心生活', '个人提升', '个人备忘'];
+  const kanbanGroup = (task) => {
+    if (boardGroups.includes(task.list)) return task.list;
+    if (['个人生活', '生活备忘'].includes(task.project)) return '用心生活';
+    if (['研究项目', '🎨 设计'].includes(task.project)) return '个人提升';
+    if (['个人提升'].includes(task.project)) return '个人提升';
+    return '努力工作';
+  };
+  const columns = boardGroups;
   element.innerHTML = columns.map((project, index) => {
-    const projectTasks = tasks.filter((task) => (task.project || task.list || '未归档') === project);
+    const projectTasks = tasks.filter((task) => kanbanGroup(task) === project);
     return `<section class="kanban-column"><header><span>${escapeHtml(project)}</span><em>${projectTasks.length}</em></header><div class="kanban-cards">${projectTasks.map((task) => `<button class="kanban-task color-${index % 5}" data-select-id="${escapeHtml(task.id)}"><span class="kanban-check"></span><strong>${escapeHtml(task.title)}</strong><time>${escapeHtml(task.dueTime || dayLabel(task.dueDate))}</time></button>`).join('')}</div></section>`;
   }).join('');
   bindTaskElements(element);
@@ -522,9 +540,6 @@ function render() {
   if (!state.selectedId && state.view === 'inbox') state.selectedId = visibleTasks()[0]?.id || null;
   renderHeader();
   updateSidebar();
-  renderMetrics();
-  renderProgress();
-  renderProjectProgress();
   renderTaskView();
   renderDetail();
 }
@@ -702,14 +717,13 @@ function bindEvents() {
   $('#refresh-button').addEventListener('click', () => { showToast('正在从 Obsidian 刷新…'); loadTasks(); });
   $('#rail-refresh-button').addEventListener('click', () => { showToast('正在从 Obsidian 刷新…'); loadTasks(); });
   $('#close-detail-button').addEventListener('click', () => { state.selectedId = null; $('#detail-panel').classList.remove('mobile-open'); render(); });
-  $('#manage-projects-button').addEventListener('click', addProject);
   $('#add-project-button').addEventListener('click', addProject);
   $('#settings-button').addEventListener('click', () => showToast(`当前连接：vault=${state.vault} · ${state.taskFile}`));
   $('#date-filter-button').addEventListener('click', cycleDateFilter);
   $('#sort-button').addEventListener('click', () => { state.sortAscending = !state.sortAscending; render(); });
   $('#search-input').addEventListener('input', (event) => { state.query = event.target.value.trim(); renderTaskView(); });
   $$('.nav-item, .view-nav-item, .rail-icon[data-rail-view]').forEach((item) => item.addEventListener('click', () => { state.view = item.dataset.view || item.dataset.railView; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
-  $$('.quick-filter').forEach((item) => item.addEventListener('click', () => { state.view = 'overview'; state.filter = 'all'; state.specialFilter = item.dataset.quickFilter; state.dateFilter = 'all'; render(); }));
+  $$('.quick-filter').forEach((item) => item.addEventListener('click', () => { state.view = 'inbox'; state.filter = 'all'; state.specialFilter = item.dataset.quickFilter; state.dateFilter = 'all'; render(); }));
   $$('.filter-chip').forEach((item) => item.addEventListener('click', () => { state.filter = item.dataset.filter; render(); }));
   $$('.view-tab').forEach((button) => button.addEventListener('click', () => { state.layout = button.dataset.layout; render(); }));
   $$('#status-selector button').forEach((button) => button.addEventListener('click', () => { $$('#status-selector button').forEach((item) => item.classList.remove('active')); button.classList.add('active'); }));

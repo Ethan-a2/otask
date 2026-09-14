@@ -17,7 +17,6 @@
           <button class="rail-icon" data-rail-view="kanban" aria-label="看板">▤</button>
           <button class="rail-icon" data-rail-view="calendar" aria-label="日历">▦</button>
           <button class="rail-icon" data-rail-view="matrix" aria-label="四象限">⊞</button>
-          <button class="rail-icon" data-rail-view="overview" aria-label="摘要">◎</button>
           <div class="rail-spacer"></div>
           <button class="rail-icon" aria-label="刷新" id="rail-refresh-button">↻</button>
           <button class="rail-icon" aria-label="通知">♟</button>
@@ -35,7 +34,6 @@
             <button class="nav-item" data-view="today"><span class="nav-icon today-icon"></span><span>今天</span><span class="count-badge" data-count="today">0</span></button>
             <button class="nav-item" data-view="upcoming"><span class="nav-icon upcoming-icon"></span><span>最近 7 天</span><span class="count-badge" data-count="upcoming">0</span></button>
             <button class="nav-item active" data-view="inbox"><span class="nav-icon inbox-icon"></span><span>收集箱</span><span class="count-badge" data-count="inbox">0</span></button>
-            <button class="nav-item" data-view="overview"><span class="nav-icon overview-icon"></span><span>摘要</span></button>
           </nav>
 
           <div class="sidebar-section view-section">
@@ -85,26 +83,6 @@
           <section class="page-heading-row">
             <div class="page-heading-main"><button class="heading-menu" aria-label="收起侧栏">☰</button><div><div class="eyebrow" id="today-label">TODAY</div><h1 id="page-heading">收集箱</h1><p class="subheading" id="page-subheading">先记下来，再安排下一步。</p></div></div>
             <div class="heading-actions"><span class="sync-pill" id="sync-pill"><span class="sync-dot"></span>已同步</span><button class="heading-sort" aria-label="排序">↕</button><button class="heading-more" aria-label="更多">···</button><button class="outline-button" id="heading-new-button">+ 添加任务</button></div>
-          </section>
-
-          <section class="metric-grid" id="metric-grid">
-            <article class="metric-card accent-purple"><div class="metric-label">总任务</div><div class="metric-number" id="metric-total">0</div><div class="metric-foot"><span>当前工作集</span><span class="metric-icon">◌</span></div></article>
-            <article class="metric-card accent-orange"><div class="metric-label">今日完成</div><div class="metric-number" id="metric-today">0<span class="metric-denominator"> / 0</span></div><div class="metric-foot"><span id="metric-today-copy">今日安排</span><span class="metric-icon">✓</span></div></article>
-            <article class="metric-card accent-red"><div class="metric-label">截止提醒</div><div class="metric-number" id="metric-deadline">0</div><div class="metric-foot"><span id="metric-deadline-copy">未来 7 天</span><span class="metric-icon">⌁</span></div></article>
-            <article class="metric-card accent-green"><div class="metric-label">整体完成率</div><div class="metric-number" id="metric-completion">0%</div><div class="metric-foot"><span id="metric-completion-copy">保持节奏</span><span class="metric-icon">↗</span></div></article>
-          </section>
-
-          <section class="overview-grid" id="overview-grid">
-            <article class="insight-card progress-card">
-              <div class="card-header"><div><div class="card-kicker">PROGRESS SNAPSHOT</div><h2>当前进展</h2></div><span class="trend-chip" id="trend-chip">稳定</span></div>
-              <div class="progress-summary"><div class="donut" id="progress-donut"><div><strong id="donut-value">0%</strong><span>已完成</span></div></div><div class="progress-copy"><div class="big-progress" id="big-progress">0 / 0</div><p>完成的任务</p><div class="gap-line"><span>预期完成</span><strong id="expected-value">0%</strong></div><div class="gap-line"><span>当前差距</span><strong id="gap-value">0%</strong></div></div></div>
-              <div class="progress-track large"><div class="progress-value" id="progress-value"></div><span class="expected-marker" id="expected-marker"></span></div>
-              <div class="progress-legend"><span><i class="legend-dot purple"></i>实际进展</span><span><i class="legend-line"></i>今日预期</span><span id="progress-tip">继续保持专注</span></div>
-            </article>
-            <article class="insight-card structure-card">
-              <div class="card-header"><div><div class="card-kicker">WORK STRUCTURE</div><h2>项目结构</h2></div><button class="link-button" id="manage-projects-button">管理项目 →</button></div>
-              <div id="project-progress-list" class="project-progress-list"></div>
-            </article>
           </section>
 
           <section class="task-section">
