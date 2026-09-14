@@ -4,7 +4,7 @@ const state = {
   fallback: false,
   vault: 'base',
   taskFile: 'Tasks.md',
-  view: 'overview',
+  view: 'inbox',
   layout: 'list',
   filter: 'all',
   specialFilter: 'all',
@@ -110,10 +110,10 @@ async function loadTasks() {
 }
 
 function fallbackTasks() {
-  const task = (id, title, offset, time, project, priority, status, repeat, deadlineTime, tags, note = '') => ({ id, title, dueDate: shiftDate(offset), dueTime: time, deadlineDate: shiftDate(offset), deadlineTime, project, list: project, priority, status, completed: status === 'done', repeat, tags, note, source: 'demo', path: state.taskFile, line: 1 });
+  const task = (id, title, offset, time, project, priority, status, repeat, deadlineTime, tags, note = '', list = project) => ({ id, title, dueDate: shiftDate(offset), dueTime: time, deadlineDate: shiftDate(offset), deadlineTime, project, list, priority, status, completed: status === 'done', repeat, tags, note, source: 'demo', path: state.taskFile, line: 1 });
   return [
-    task('demo-1', '整理本周产品反馈', 0, '09:30', '产品升级', 'high', 'in-progress', 'none', '11:30', ['反馈', '工作']),
-    task('demo-2', '完成首页信息架构', 0, '13:00', '产品升级', 'urgent', 'todo', 'none', '17:30', ['设计', '工作']),
+    task('demo-1', '整理本周产品反馈', 0, '09:30', '产品升级', 'high', 'in-progress', 'none', '11:30', ['反馈', '工作'], '', '收件箱'),
+    task('demo-2', '完成首页信息架构', 0, '13:00', '产品升级', 'urgent', 'todo', 'none', '17:30', ['设计', '工作'], '', '收件箱'),
     task('demo-3', '午休散步 20 分钟', 0, '12:30', '个人生活', 'low', 'done', 'daily', '13:00', ['健康']),
     task('demo-4', '发布 v1.4.0 更新说明', 1, '10:00', '产品升级', 'urgent', 'blocked', 'none', '18:00', ['发布']),
     task('demo-5', '预约周末羽毛球场', 2, '18:30', '个人生活', 'none', 'todo', 'weekly', '20:00', ['运动']),
@@ -139,7 +139,7 @@ function currentViewCopy() {
   if (project) return { title: project, heading: `${project} 项目`, subtitle: '围绕同一个目标，推进每一个下一步。' };
   const copies = {
     overview: { title: '总览', heading: '今天的节奏', subtitle: '先看全局，再决定下一步。' },
-    inbox: { title: '收件箱', heading: '收件箱', subtitle: '还没归档的任务，都先放在这里。' },
+    inbox: { title: '收集箱', heading: '收集箱', subtitle: '先记下来，再安排下一步。' },
     today: { title: '今天', heading: '今天要完成什么', subtitle: '让重要的事情在截止之前完成。' },
     upcoming: { title: '即将到来', heading: '即将到来', subtitle: '提前看见接下来几天的节奏。' },
     completed: { title: '已完成', heading: '已完成', subtitle: '回看已经完成的每一件小事。' }
@@ -197,6 +197,7 @@ function updateSidebar() {
   $('[data-count="today"]').textContent = today.filter((task) => task.status !== 'done').length;
   $('[data-count="upcoming"]').textContent = active.filter((task) => task.dueDate >= dateKey()).length;
   $$('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === state.view));
+  $$('.rail-icon[data-rail-view]').forEach((item) => item.classList.toggle('active', item.dataset.railView === state.view));
   $$('.quick-filter').forEach((item) => item.classList.toggle('active', item.dataset.quickFilter === state.specialFilter));
   const nav = $('#project-nav');
   nav.innerHTML = allProjects().map((project, index) => {
@@ -213,6 +214,7 @@ function updateSelect(select, values, selected) {
 
 function renderHeader() {
   const copy = currentViewCopy();
+  document.body.dataset.view = state.view;
   $('#view-title').textContent = copy.title;
   $('#page-heading').textContent = copy.heading;
   $('#page-subheading').textContent = copy.subtitle;
@@ -291,14 +293,19 @@ function taskMeta(task) {
 }
 
 function taskCard(task, compact = false) {
-  return `<article class="task-card status-${escapeHtml(task.status)} ${task.id === state.selectedId ? 'selected' : ''} ${compact ? 'compact' : ''}" data-task-id="${escapeHtml(task.id)}"><button class="task-checkbox status-${escapeHtml(task.status)}" data-toggle-id="${escapeHtml(task.id)}" aria-label="切换任务完成状态"></button><div class="task-main" data-select-id="${escapeHtml(task.id)}"><div class="task-title">${escapeHtml(task.title)}</div><div class="task-meta">${taskMeta(task)}</div></div><select class="task-status-select" data-status-id="${escapeHtml(task.id)}" aria-label="任务状态">${Object.entries(statusInfo).map(([key, info]) => `<option value="${key}" ${task.status === key ? 'selected' : ''}>${info.label}</option>`).join('')}</select><button class="task-more" data-select-id="${escapeHtml(task.id)}" aria-label="查看任务详情">···</button></article>`;
+  const dateText = task.dueDate === dateKey() ? '' : dayLabel(task.dueDate);
+  const timeText = task.dueTime || '全天';
+  const priority = task.priority !== 'none' ? `<span class="task-priority priority-${escapeHtml(task.priority)}" title="${escapeHtml(priorityInfo[task.priority])}"></span>` : '';
+  const repeat = task.repeat !== 'none' ? '<span class="task-repeat" title="循环任务">↻</span>' : '';
+  return `<article class="task-card status-${escapeHtml(task.status)} ${task.id === state.selectedId ? 'selected' : ''} ${compact ? 'compact' : ''}" data-task-id="${escapeHtml(task.id)}"><button class="task-checkbox status-${escapeHtml(task.status)}" data-toggle-id="${escapeHtml(task.id)}" aria-label="切换任务完成状态"></button><div class="task-main" data-select-id="${escapeHtml(task.id)}"><div class="task-title">${priority}${escapeHtml(task.title)}${repeat}</div><div class="task-meta">${taskMeta(task)}</div></div><time class="task-time" datetime="${escapeHtml(`${task.dueDate}T${task.dueTime || '00:00'}`)}"><span>${escapeHtml(dateText)}</span><strong>${escapeHtml(timeText)}</strong></time><select class="task-status-select" data-status-id="${escapeHtml(task.id)}" aria-label="任务状态">${Object.entries(statusInfo).map(([key, info]) => `<option value="${key}" ${task.status === key ? 'selected' : ''}>${info.label}</option>`).join('')}</select><button class="task-more" data-select-id="${escapeHtml(task.id)}" aria-label="查看任务详情">···</button></article>`;
 }
 
 function groupTasks(tasks) {
   const groups = new Map();
   for (const task of tasks) {
-    if (!groups.has(task.dueDate)) groups.set(task.dueDate, []);
-    groups.get(task.dueDate).push(task);
+    const key = task.dueDate === dateKey() ? 'today' : task.dueDate === shiftDate(1) ? 'tomorrow' : task.dueDate >= dateKey() && task.dueDate <= shiftDate(6) ? 'next7' : task.dueDate;
+    if (!groups.has(key)) groups.set(key, { date: task.dueDate, tasks: [] });
+    groups.get(key).tasks.push(task);
   }
   return groups;
 }
@@ -312,10 +319,11 @@ function bindTaskElements(container) {
 function renderListView(tasks) {
   const element = document.createElement('div');
   element.className = 'task-list';
-  for (const [date, group] of groupTasks(tasks)) {
+  for (const [groupKey, group] of groupTasks(tasks)) {
     const section = document.createElement('section');
     section.className = 'task-group';
-    section.innerHTML = `<div class="group-heading ${date === dateKey() ? 'today-heading' : ''}"><span class="group-marker"></span><span>${escapeHtml(dayLabel(date))}</span><span class="group-count">${formatDate(date)} · ${group.length}</span></div>${group.map((task) => taskCard(task)).join('')}`;
+    const label = groupKey === 'today' ? '今天' : groupKey === 'tomorrow' ? '明天' : groupKey === 'next7' ? '最近 7 天' : dayLabel(group.date);
+    section.innerHTML = `<div class="group-heading ${groupKey === 'today' ? 'today-heading' : ''}"><span class="group-marker"></span><span>${escapeHtml(label)}</span><span class="group-count">${group.tasks.length}</span></div>${group.tasks.map((task) => taskCard(task)).join('')}`;
     element.appendChild(section);
   }
   bindTaskElements(element);
@@ -380,6 +388,7 @@ function renderDetail() {
   empty.classList.add('hidden');
   content.classList.remove('hidden');
   $('#detail-title').value = task.title;
+  $('#detail-date-label').textContent = `${task.dueDate === dateKey() ? '今天' : dayLabel(task.dueDate)}${task.dueTime ? `，${task.dueTime}` : ''}`;
   $('#detail-date').value = task.dueDate;
   $('#detail-time').value = task.dueTime || '';
   $('#detail-deadline-date').value = task.deadlineDate || '';
@@ -395,6 +404,7 @@ function renderDetail() {
 }
 
 function render() {
+  if (!state.selectedId && state.view === 'inbox') state.selectedId = visibleTasks()[0]?.id || null;
   renderHeader();
   updateSidebar();
   renderMetrics();
@@ -476,6 +486,38 @@ async function createTask(event) {
   } catch (error) { showToast(error.message, 'error'); }
 }
 
+async function quickAddTask(event) {
+  event.preventDefault();
+  const title = $('#quick-add-title').value.trim();
+  if (!title) return;
+  const payload = {
+    title,
+    dueDate: dateKey(),
+    dueTime: '',
+    deadlineDate: dateKey(),
+    deadlineTime: '',
+    repeat: 'none',
+    project: projectView() || allProjects()[0] || '未归档',
+    list: '收件箱',
+    priority: 'none',
+    status: 'todo',
+    tags: [],
+    note: ''
+  };
+  try {
+    if (state.connected) {
+      await request('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+      await loadTasks();
+      showToast('任务已写入 Obsidian');
+    } else {
+      state.tasks.push({ ...payload, id: `demo-${Date.now()}`, completed: false, source: 'demo', path: state.taskFile, line: 1 });
+      render();
+      showToast('任务已添加到收集箱');
+    }
+    $('#quick-add-form').reset();
+  } catch (error) { showToast(error.message, 'error'); }
+}
+
 async function saveTask() {
   const task = state.tasks.find((item) => item.id === state.selectedId);
   if (!task) return;
@@ -538,10 +580,12 @@ function bindEvents() {
   $('#close-modal-button').addEventListener('click', closeModal);
   $('#task-modal').addEventListener('click', (event) => { if (event.target === $('#task-modal')) closeModal(); });
   $('#new-task-form').addEventListener('submit', createTask);
+  $('#quick-add-form').addEventListener('submit', quickAddTask);
   $('#save-task-button').addEventListener('click', saveTask);
   $('#delete-task-button').addEventListener('click', deleteTask);
   $('#seed-button').addEventListener('click', seedTasks);
   $('#refresh-button').addEventListener('click', () => { showToast('正在从 Obsidian 刷新…'); loadTasks(); });
+  $('#rail-refresh-button').addEventListener('click', () => { showToast('正在从 Obsidian 刷新…'); loadTasks(); });
   $('#close-detail-button').addEventListener('click', () => { state.selectedId = null; $('#detail-panel').classList.remove('mobile-open'); render(); });
   $('#manage-projects-button').addEventListener('click', addProject);
   $('#add-project-button').addEventListener('click', addProject);
@@ -549,7 +593,7 @@ function bindEvents() {
   $('#date-filter-button').addEventListener('click', cycleDateFilter);
   $('#sort-button').addEventListener('click', () => { state.sortAscending = !state.sortAscending; render(); });
   $('#search-input').addEventListener('input', (event) => { state.query = event.target.value.trim(); renderTaskView(); });
-  $$('.nav-item').forEach((item) => item.addEventListener('click', () => { state.view = item.dataset.view; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
+  $$('.nav-item, .rail-icon[data-rail-view]').forEach((item) => item.addEventListener('click', () => { state.view = item.dataset.view || item.dataset.railView; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
   $$('.quick-filter').forEach((item) => item.addEventListener('click', () => { state.view = 'overview'; state.filter = 'all'; state.specialFilter = item.dataset.quickFilter; state.dateFilter = 'all'; render(); }));
   $$('.filter-chip').forEach((item) => item.addEventListener('click', () => { state.filter = item.dataset.filter; render(); }));
   $$('.view-tab').forEach((button) => button.addEventListener('click', () => { state.layout = button.dataset.layout; render(); }));

@@ -278,10 +278,10 @@ async function deleteTask(taskId, body) {
 }
 
 function demoTasks() {
-  const task = (id, title, offset, time, deadlineTime, project, priority, status, repeat, tags, note = '') => ({ id, title, dueDate: localDate(offset), dueTime: time, deadlineDate: localDate(offset), deadlineTime, project, list: project, priority, status, completed: status === 'done', repeat, tags, note, source: 'demo', path: TASK_FILE, line: 1 });
+  const task = (id, title, offset, time, deadlineTime, project, priority, status, repeat, tags, note = '', list = project) => ({ id, title, dueDate: localDate(offset), dueTime: time, deadlineDate: localDate(offset), deadlineTime, project, list, priority, status, completed: status === 'done', repeat, tags, note, source: 'demo', path: TASK_FILE, line: 1 });
   return [
-    task('demo-1', '整理本周产品反馈', 0, '09:30', '11:30', '产品升级', 'high', 'in-progress', 'none', ['反馈', '工作'], '把客服、销售和用户访谈里的高频问题归档。'),
-    task('demo-2', '完成首页信息架构', 0, '13:00', '17:30', '产品升级', 'urgent', 'todo', 'none', ['设计', '工作']),
+    task('demo-1', '整理本周产品反馈', 0, '09:30', '11:30', '产品升级', 'high', 'in-progress', 'none', ['反馈', '工作'], '把客服、销售和用户访谈里的高频问题归档。', '收件箱'),
+    task('demo-2', '完成首页信息架构', 0, '13:00', '17:30', '产品升级', 'urgent', 'todo', 'none', ['设计', '工作'], '', '收件箱'),
     task('demo-3', '午休散步 20 分钟', 0, '12:30', '13:00', '个人生活', 'low', 'done', 'daily', ['健康']),
     task('demo-4', '发布 v1.4.0 更新说明', 1, '10:00', '18:00', '产品升级', 'urgent', 'blocked', 'none', ['发布'], '等待研发确认最终版本号。'),
     task('demo-5', '预约周末羽毛球场', 2, '18:30', '20:00', '个人生活', 'none', 'todo', 'weekly', ['运动']),

@@ -4,52 +4,70 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f6f7fb" />
-    <title>Taskbase · Obsidian 任务工作台</title>
+    <title>收集箱 · taskbase</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
-        <div class="brand-row">
-          <div class="brand-mark"><span></span><span></span><span></span></div>
-          <div><div class="brand-name">taskbase</div><div class="brand-caption">obsidian workspace</div></div>
+        <div class="icon-rail" aria-label="应用导航">
+          <div class="rail-logo"><span></span><span></span><span></span></div>
+          <button class="rail-icon active" data-rail-view="inbox" aria-label="收集箱">✓</button>
+          <button class="rail-icon" data-rail-view="today" aria-label="今天">▦</button>
+          <button class="rail-icon" data-rail-view="upcoming" aria-label="最近7天">▤</button>
+          <button class="rail-icon" data-rail-view="overview" aria-label="摘要">✣</button>
+          <button class="rail-icon" aria-label="专注">◎</button>
+          <button class="rail-icon" aria-label="日历">◷</button>
+          <div class="rail-spacer"></div>
+          <button class="rail-icon" aria-label="刷新" id="rail-refresh-button">↻</button>
+          <button class="rail-icon" aria-label="通知">♟</button>
+          <button class="rail-icon" aria-label="帮助">?</button>
         </div>
-        <button class="new-task-button" id="new-task-button"><span class="plus-icon">+</span><span>新建任务</span><span class="shortcut">N</span></button>
+        <div class="sidebar-pane">
+          <div class="brand-row">
+            <div class="brand-mark"><span></span><span></span><span></span></div>
+            <div><div class="brand-name">taskbase</div><div class="brand-caption">清晰地完成每一件事</div></div>
+          </div>
+          <button class="new-task-button" id="new-task-button"><span class="plus-icon">+</span><span>添加任务</span><span class="shortcut">N</span></button>
 
-        <div class="sidebar-label">工作台</div>
-        <nav class="nav-list" aria-label="任务视图">
-          <button class="nav-item active" data-view="overview"><span class="nav-icon overview-icon"></span><span>总览</span></button>
-          <button class="nav-item" data-view="inbox"><span class="nav-icon inbox-icon"></span><span>收件箱</span><span class="count-badge" data-count="inbox">0</span></button>
-          <button class="nav-item" data-view="today"><span class="nav-icon today-icon"></span><span>今天</span><span class="count-badge" data-count="today">0</span></button>
-          <button class="nav-item" data-view="upcoming"><span class="nav-icon upcoming-icon"></span><span>即将到来</span><span class="count-badge" data-count="upcoming">0</span></button>
-          <button class="nav-item" data-view="completed"><span class="nav-icon completed-icon"></span><span>已完成</span></button>
-        </nav>
+          <div class="sidebar-label">我的任务</div>
+          <nav class="nav-list" aria-label="任务视图">
+            <button class="nav-item" data-view="today"><span class="nav-icon today-icon"></span><span>今天</span><span class="count-badge" data-count="today">0</span></button>
+            <button class="nav-item" data-view="upcoming"><span class="nav-icon upcoming-icon"></span><span>最近 7 天</span><span class="count-badge" data-count="upcoming">0</span></button>
+            <button class="nav-item active" data-view="inbox"><span class="nav-icon inbox-icon"></span><span>收集箱</span><span class="count-badge" data-count="inbox">0</span></button>
+            <button class="nav-item" data-view="overview"><span class="nav-icon overview-icon"></span><span>摘要</span></button>
+          </nav>
 
-        <div class="sidebar-section">
-          <div class="sidebar-heading"><span>项目</span><button class="mini-add" id="add-project-button" aria-label="添加项目">+</button></div>
-          <div id="project-nav" class="project-nav"></div>
-        </div>
-        <div class="sidebar-section filter-section">
-          <div class="sidebar-heading"><span>快速筛选</span></div>
-          <button class="quick-filter" data-quick-filter="priority"><span class="quick-filter-icon amber">!</span><span>高优先级</span><span class="list-count" id="priority-count">0</span></button>
-          <button class="quick-filter" data-quick-filter="overdue"><span class="quick-filter-icon red">⌁</span><span>已逾期</span><span class="list-count" id="overdue-count">0</span></button>
-          <button class="quick-filter" data-quick-filter="recurring"><span class="quick-filter-icon green">↻</span><span>循环任务</span><span class="list-count" id="recurring-count">0</span></button>
-        </div>
+          <div class="sidebar-section">
+            <div class="sidebar-heading"><span>清单</span><button class="mini-add" id="add-project-button" aria-label="添加清单">+</button></div>
+            <div id="project-nav" class="project-nav"></div>
+          </div>
+          <div class="sidebar-section filter-section">
+            <div class="sidebar-heading"><span>智能列表</span></div>
+            <button class="quick-filter" data-quick-filter="priority"><span class="quick-filter-icon amber">!</span><span>高优先级</span><span class="list-count" id="priority-count">0</span></button>
+            <button class="quick-filter" data-quick-filter="overdue"><span class="quick-filter-icon red">⌁</span><span>已逾期</span><span class="list-count" id="overdue-count">0</span></button>
+            <button class="quick-filter" data-quick-filter="recurring"><span class="quick-filter-icon green">↻</span><span>循环任务</span><span class="list-count" id="recurring-count">0</span></button>
+          </div>
 
-        <div class="sidebar-spacer"></div>
-        <div class="connection-card" id="connection-card">
-          <div class="connection-top"><span class="status-dot"></span><span id="connection-label">正在连接 Obsidian</span></div>
-          <div class="connection-meta" id="connection-meta">vault=base</div>
-          <button class="text-button" id="seed-button">写入真实示例任务 →</button>
+          <div class="sidebar-spacer"></div>
+          <div class="sidebar-bottom-nav">
+            <button class="nav-item" data-view="completed"><span class="nav-icon completed-icon"></span><span>已完成</span></button>
+            <button class="nav-item" type="button"><span class="nav-icon trash-icon"></span><span>垃圾桶</span></button>
+          </div>
+          <div class="connection-card" id="connection-card">
+            <div class="connection-top"><span class="status-dot"></span><span id="connection-label">正在连接 Obsidian</span></div>
+            <div class="connection-meta" id="connection-meta">正在读取任务数据</div>
+            <button class="text-button" id="seed-button">写入真实示例任务 →</button>
+          </div>
+          <div class="sidebar-footer"><span>⌘ K</span><span>搜索任务</span><button class="icon-button" id="settings-button" aria-label="设置">⚙</button></div>
         </div>
-        <div class="sidebar-footer"><span>⌘ K</span><span>搜索任务</span><button class="icon-button" id="settings-button" aria-label="设置">⚙</button></div>
       </aside>
 
       <main class="main-content">
         <header class="topbar">
-          <div class="breadcrumb"><span class="breadcrumb-dot"></span><span>我的工作台</span><span class="slash">/</span><strong id="view-title">总览</strong></div>
+          <div class="breadcrumb"><span class="breadcrumb-dot"></span><span>我的任务</span><span class="slash">/</span><strong id="view-title">收集箱</strong></div>
           <div class="topbar-actions">
-            <label class="search-box"><span class="search-icon"></span><input id="search-input" type="search" placeholder="搜索任务、项目或标签" /><kbd>⌘ K</kbd></label>
+            <label class="search-box"><span class="search-icon"></span><input id="search-input" type="search" placeholder="搜索任务" /><kbd>⌘ K</kbd></label>
             <button class="icon-button" id="refresh-button" aria-label="刷新任务">↻</button>
             <div class="avatar">B</div>
           </div>
@@ -57,8 +75,8 @@
 
         <div class="page-content">
           <section class="page-heading-row">
-            <div><div class="eyebrow" id="today-label">FRIDAY · AUG 28</div><h1 id="page-heading">今天的节奏</h1><p class="subheading" id="page-subheading">先看全局，再决定下一步。</p></div>
-            <div class="heading-actions"><span class="sync-pill" id="sync-pill"><span class="sync-dot"></span>已同步</span><button class="outline-button" id="heading-new-button">+ 新建任务</button></div>
+            <div class="page-heading-main"><button class="heading-menu" aria-label="收起侧栏">☰</button><div><div class="eyebrow" id="today-label">TODAY</div><h1 id="page-heading">收集箱</h1><p class="subheading" id="page-subheading">先记下来，再安排下一步。</p></div></div>
+            <div class="heading-actions"><span class="sync-pill" id="sync-pill"><span class="sync-dot"></span>已同步</span><button class="heading-sort" aria-label="排序">↕</button><button class="heading-more" aria-label="更多">···</button><button class="outline-button" id="heading-new-button">+ 添加任务</button></div>
           </section>
 
           <section class="metric-grid" id="metric-grid">
@@ -82,7 +100,8 @@
           </section>
 
           <section class="task-section">
-            <div class="task-section-header"><div><div class="card-kicker">TASK FLOW</div><h2 id="task-section-title">所有任务</h2></div><div class="view-tabs"><button class="view-tab active" data-layout="list">列表</button><button class="view-tab" data-layout="board">看板</button><button class="view-tab" data-layout="timeline">时间线</button></div></div>
+            <div class="task-section-header"><div><div class="card-kicker">INBOX</div><h2 id="task-section-title">收集箱</h2></div><div class="view-tabs"><button class="view-tab active" data-layout="list">列表</button><button class="view-tab" data-layout="board">看板</button><button class="view-tab" data-layout="timeline">时间线</button></div></div>
+            <form class="quick-add-row" id="quick-add-form"><span class="quick-add-icon">+</span><input id="quick-add-title" type="text" placeholder="添加任务，按回车快速收集…" autocomplete="off" /><button type="submit">回车添加</button></form>
             <div class="task-toolbar"><div class="status-filters"><button class="filter-chip active" data-filter="all">全部 <span id="all-count">0</span></button><button class="filter-chip" data-filter="todo">待处理</button><button class="filter-chip" data-filter="in-progress">进行中</button><button class="filter-chip" data-filter="blocked">阻塞</button><button class="filter-chip" data-filter="done">已完成</button></div><div class="toolbar-right"><button class="toolbar-button" id="date-filter-button">⌗ 日期 <span>⌄</span></button><button class="toolbar-button" id="sort-button">↕ 排序</button></div></div>
             <div id="task-view" class="task-view"></div>
             <div class="empty-state hidden" id="empty-state"><div class="empty-orbit"><span>✓</span></div><h2 id="empty-title">这里还没有任务</h2><p id="empty-description">创建一个带日期的任务，让计划开始有形。</p><button class="primary-button" id="empty-create-button">新建任务</button></div>
@@ -93,7 +112,7 @@
       <aside class="detail-panel" id="detail-panel">
         <div class="detail-empty" id="detail-empty"><div class="detail-empty-icon">✦</div><strong>选中一个任务</strong><span>查看完整信息、调整状态或记录备注</span></div>
         <div class="detail-content hidden" id="detail-content">
-          <div class="detail-head"><div><span class="eyebrow">TASK DETAILS</span><h2>任务详情</h2></div><button class="icon-button" id="close-detail-button" aria-label="关闭详情">×</button></div>
+          <div class="detail-head"><div class="detail-tools"><button aria-label="任务清单">▤</button><span></span><button aria-label="日期">▣</button><strong id="detail-date-label">今天，09:00</strong></div><button class="icon-button" id="close-detail-button" aria-label="关闭详情">×</button></div>
           <div class="detail-form">
             <label class="form-label">任务标题<input id="detail-title" type="text" /></label>
             <label class="form-label">状态<div class="status-selector" id="status-selector"><button data-status="todo">待处理</button><button data-status="in-progress">进行中</button><button data-status="blocked">阻塞</button><button data-status="done">完成</button></div></label>
