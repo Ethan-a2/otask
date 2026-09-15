@@ -2,6 +2,7 @@ const state = {
   tasks: [],
   connected: false,
   fallback: false,
+  includeUndated: false,
   vault: 'base',
   taskFile: 'Tasks.md',
   view: ['overview', 'summary'].includes(new URLSearchParams(window.location.search).get('view')) ? 'inbox' : new URLSearchParams(window.location.search).get('view') || 'inbox',
@@ -125,7 +126,7 @@ function setConnection(connected, fallback) {
   card.classList.toggle('connected', state.connected && !state.fallback);
   card.classList.toggle('offline', !state.connected);
   $('#connection-label').textContent = state.fallback ? '演示模式' : state.connected ? '已连接 Obsidian' : 'Obsidian 未连接';
-  $('#connection-meta').textContent = state.fallback ? '可先体验，连接后自动同步' : `vault=${state.vault} · 全仓库任务`;
+  $('#connection-meta').textContent = state.fallback ? '可先体验，连接后自动同步' : `vault=${state.vault} · 全仓库任务 · ${state.includeUndated ? '含无日期' : '仅有日期'}`;
   $('#seed-button').textContent = state.connected ? '写入真实示例任务 →' : '需要 Obsidian 才能写入 →';
   $('#sync-pill').classList.toggle('offline', !state.connected || state.fallback);
   $('#sync-pill').innerHTML = `<span class="sync-dot"></span>${state.fallback ? '演示数据' : state.connected ? '已同步' : '未连接'}`;
@@ -137,6 +138,7 @@ async function loadTasks() {
     state.tasks = data.tasks || [];
     state.vault = data.vault || state.vault;
     state.taskFile = data.taskFile || state.taskFile;
+    state.includeUndated = Boolean(data.includeUndated);
     setConnection(data.connected, data.fallback);
   } catch (error) {
     state.tasks = fallbackTasks();
@@ -251,7 +253,7 @@ function updateSidebar() {
     const count = active.filter((task) => task.project === project).length;
     return `<button class="project-button ${projectView() === project ? 'active' : ''}" data-project-view="${escapeHtml(project)}"><span class="project-color" style="background:${projectColors[index % projectColors.length]}"></span><span>${escapeHtml(project)}</span><span class="list-count">${count}</span></button>`;
   }).join('');
-  nav.querySelectorAll('[data-project-view]').forEach((button) => button.addEventListener('click', () => { state.view = `project|${button.dataset.projectView}`; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
+  nav.querySelectorAll('[data-project-view]').forEach((button) => button.addEventListener('click', () => { state.view = `project|${button.dataset.projectView}`; state.selectedId = null; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
 }
 
 function updateSelect(select, values, selected) {
@@ -641,13 +643,18 @@ function renderTaskView() {
 
 function renderDetail() {
   const task = state.tasks.find((item) => item.id === state.selectedId);
+  const panel = $('#detail-panel');
   const empty = $('#detail-empty');
   const content = $('#detail-content');
   if (!task) {
-    empty.classList.remove('hidden');
+    document.body.classList.remove('detail-open');
+    panel.classList.add('hidden');
+    empty.classList.add('hidden');
     content.classList.add('hidden');
     return;
   }
+  document.body.classList.add('detail-open');
+  panel.classList.remove('hidden');
   empty.classList.add('hidden');
   content.classList.remove('hidden');
   $('#detail-title').value = task.title;
@@ -667,7 +674,6 @@ function renderDetail() {
 }
 
 function render() {
-  if (!state.selectedId && state.view === 'inbox') state.selectedId = visibleTasks()[0]?.id || null;
   renderHeader();
   updateSidebar();
   renderTaskView();
@@ -848,12 +854,12 @@ function bindEvents() {
   $('#rail-refresh-button').addEventListener('click', () => { showToast('正在从 Obsidian 刷新…'); loadTasks(); });
   $('#close-detail-button').addEventListener('click', () => { state.selectedId = null; $('#detail-panel').classList.remove('mobile-open'); render(); });
   $('#add-project-button').addEventListener('click', addProject);
-  $('#settings-button').addEventListener('click', () => showToast(`读取整个仓库 · 新任务写入 ${state.taskFile}`));
+  $('#settings-button').addEventListener('click', () => showToast(`读取整个仓库 · ${state.includeUndated ? '显示' : '隐藏'}无日期任务 · 新任务写入 ${state.taskFile}`));
   $('#date-filter-button').addEventListener('click', cycleDateFilter);
   $('#sort-button').addEventListener('click', () => { state.sortAscending = !state.sortAscending; render(); });
   $('#search-input').addEventListener('input', (event) => { state.query = event.target.value.trim(); renderTaskView(); });
-  $$('.nav-item, .view-nav-item, .rail-icon[data-rail-view]').forEach((item) => item.addEventListener('click', () => { state.view = item.dataset.view || item.dataset.railView; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
-  $$('.quick-filter').forEach((item) => item.addEventListener('click', () => { state.view = 'inbox'; state.filter = 'all'; state.specialFilter = item.dataset.quickFilter; state.dateFilter = 'all'; render(); }));
+  $$('.nav-item, .view-nav-item, .rail-icon[data-rail-view]').forEach((item) => item.addEventListener('click', () => { state.view = item.dataset.view || item.dataset.railView; state.selectedId = null; state.filter = 'all'; state.specialFilter = 'all'; state.dateFilter = 'all'; render(); }));
+  $$('.quick-filter').forEach((item) => item.addEventListener('click', () => { state.view = 'inbox'; state.selectedId = null; state.filter = 'all'; state.specialFilter = item.dataset.quickFilter; state.dateFilter = 'all'; render(); }));
   $$('.filter-chip').forEach((item) => item.addEventListener('click', () => { state.filter = item.dataset.filter; render(); }));
   $$('.view-tab').forEach((button) => button.addEventListener('click', () => { state.layout = button.dataset.layout; render(); }));
   $$('#status-selector button').forEach((button) => button.addEventListener('click', () => { $$('#status-selector button').forEach((item) => item.classList.remove('active')); button.classList.add('active'); }));
@@ -861,7 +867,7 @@ function bindEvents() {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('#search-input').focus(); }
     if (event.key.toLowerCase() === 'n' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) openModal();
     if (event.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) { event.preventDefault(); $('#search-input').focus(); }
-    if (event.key === 'Escape') { closeModal(); $('#detail-panel').classList.remove('mobile-open'); }
+    if (event.key === 'Escape') { closeModal(); state.selectedId = null; $('#detail-panel').classList.remove('mobile-open'); render(); }
   });
 }
 

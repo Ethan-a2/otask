@@ -18,7 +18,7 @@ npm start
 - 新建：通过 `append` 写入带日期、截止时间、状态和隐藏元数据的 Markdown checklist
 - 修改/删除：读取任务来源文件后，通过 `create ... overwrite` 回写对应行
 
-只展示带日期的任务；任务的状态、项目、循环、截止时间、优先级和备注会写入任务行的隐藏 `taskbase` 元数据，日期等信息也会保留为可读文本，例如：
+默认只展示带日期的任务；任务的状态、项目、循环、截止时间、优先级和备注会写入任务行的隐藏 `taskbase` 元数据，日期等信息也会保留为可读文本，例如：
 
 ```md
 - [/] 梳理下周迭代范围 📅 2026-08-29 09:30 ⏳ 2026-08-29 12:00 🟠 #计划 #工作
@@ -29,5 +29,13 @@ npm start
 ```bash
 OBSIDIAN_VAULT=base OBSIDIAN_TASK_FILE=Tasks.md PORT=3000 npm start
 ```
+
+需要同时展示整个 Vault 中的无日期任务时，启动服务时增加：
+
+```bash
+npm start -- --include-undated
+```
+
+也可以使用环境变量 `OBSIDIAN_INCLUDE_UNDATED=true`。
 
 如果 Obsidian CLI 暂时不可用，页面会进入演示模式，方便先体验界面；演示模式的修改不会写入 Vault。连接恢复后点击“刷新”即可重新读取 Obsidian。

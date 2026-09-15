@@ -7,6 +7,7 @@ const { spawn } = require('node:child_process');
 const PORT = Number(process.env.PORT || 3000);
 const VAULT = process.env.OBSIDIAN_VAULT || 'base';
 const TASK_FILE = process.env.OBSIDIAN_TASK_FILE || 'Tasks.md';
+const INCLUDE_UNDATED = process.argv.includes('--include-undated') || /^(1|true|yes)$/iu.test(process.env.OBSIDIAN_INCLUDE_UNDATED || '');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const VALID_STATUSES = ['todo', 'in-progress', 'blocked', 'done'];
 const VALID_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
@@ -190,6 +191,10 @@ function parseTasksOutput(output) {
   return records.map(normalizeRecord).filter(Boolean);
 }
 
+function tasksForDisplay(tasks) {
+  return INCLUDE_UNDATED ? tasks : tasks.filter((task) => task.dueDate);
+}
+
 function taskStatusChar(status) {
   return { todo: ' ', 'in-progress': '/', blocked: '-', done: 'x' }[status] || ' ';
 }
@@ -228,9 +233,9 @@ function safeTaskInput(body) {
 async function loadTasks() {
   try {
     const result = await runObsidian(['tasks', 'verbose', 'format=json']);
-    return { tasks: parseTasksOutput(result.stdout), connected: true, fallback: false, vault: VAULT, taskFile: TASK_FILE };
+    return { tasks: tasksForDisplay(parseTasksOutput(result.stdout)), connected: true, fallback: false, vault: VAULT, taskFile: TASK_FILE, includeUndated: INCLUDE_UNDATED };
   } catch (error) {
-    return { tasks: demoTasks(), connected: false, fallback: true, vault: VAULT, taskFile: TASK_FILE, error: error.message };
+    return { tasks: demoTasks(), connected: false, fallback: true, vault: VAULT, taskFile: TASK_FILE, includeUndated: INCLUDE_UNDATED, error: error.message };
   }
 }
 
@@ -441,8 +446,9 @@ async function handleApi(request, response, url) {
     }
     if (request.method === 'GET' && url.pathname === '/api/health') {
       try {
-        const result = await runObsidian(['tasks', 'total']);
-        jsonResponse(response, 200, { connected: true, vault: VAULT, taskFile: TASK_FILE, total: Number(result.stdout) || 0 });
+        const result = await runObsidian(['tasks', 'verbose', 'format=json']);
+        const allTasks = parseTasksOutput(result.stdout);
+        jsonResponse(response, 200, { connected: true, vault: VAULT, taskFile: TASK_FILE, total: tasksForDisplay(allTasks).length, vaultTotal: allTasks.length, includeUndated: INCLUDE_UNDATED });
       } catch (error) {
         jsonResponse(response, 200, { connected: false, vault: VAULT, taskFile: TASK_FILE, error: error.message });
       }
@@ -499,4 +505,5 @@ const server = http.createServer(async (request, response) => {
 server.listen(PORT, () => {
   console.log(`Taskbase is running at http://localhost:${PORT}`);
   console.log(`Obsidian vault: ${VAULT} · task file: ${TASK_FILE}`);
+  console.log(`Undated tasks: ${INCLUDE_UNDATED ? 'included' : 'hidden (use --include-undated to show)'}`);
 });
